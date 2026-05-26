@@ -4,18 +4,20 @@
 // since cookie come at express - how do we set it in trpc bcuz in trpc we dont have access to req,res-
 // context : we can pass(req,res) from express to trpc with the use of context
 // context - built in funcaitonality in trpc library
-import { publicProcedure, router } from "../../trpc"
+import { authenticatedProcedure, publicProcedure, router } from "../../trpc";
 import {
     createUserWithEmailAndPasswordInputModel,
     createUserWithEmailAndPasswordOutputModel,
+    getLoggedInUserInfoInputModel,
+    getLoggedInUserInfoOutputModel,
     signInUserWithEmailAndPasswordInputModel,
-    signInUserWithEmailAndPasswordOutputModel
-} from "./model"
-import { userService } from "../../services"
-import { generatePath } from "../../utils/path-generator"
+    signInUserWithEmailAndPasswordOutputModel,
+} from "./model";
+import { userService } from "../../services";
+import { generatePath } from "../../utils/path-generator";
 import { signInUserWithEmailAndPassword } from "@repo/services/user/model";
-const getPath = generatePath("/authentication")
-const TAGS = ["Authentication"]
+const getPath = generatePath("/authentication");
+const TAGS = ["Authentication"];
 
 // url will be seen like /authentication/createUserWithEmailAndPassword
 
@@ -25,8 +27,8 @@ export const authRouter = router({
             openapi: {
                 method: "POST",
                 path: getPath("/createUserWithEmailAndPassword"),
-                tags: TAGS
-            }
+                tags: TAGS,
+            },
         })
         .input(createUserWithEmailAndPasswordInputModel)
         .output(createUserWithEmailAndPasswordOutputModel)
@@ -36,7 +38,7 @@ export const authRouter = router({
             const { id, token } = await userService.createUserWithEmailAndPassword({
                 fullName,
                 email,
-                password
+                password,
             });
             ctx.setCookie("token", token, {
                 httpOnly: true,
@@ -46,7 +48,7 @@ export const authRouter = router({
             });
             return {
                 id,
-            }
+            };
         }),
 
     signInUserWithEmailAndPassword: publicProcedure
@@ -54,29 +56,40 @@ export const authRouter = router({
             openapi: {
                 method: "POST",
                 path: getPath("/signInUserWithEmailAndPassword"),
-                tags: TAGS
-            }
+                tags: TAGS,
+            },
         })
         .input(signInUserWithEmailAndPasswordInputModel)
         .output(signInUserWithEmailAndPasswordOutputModel)
-        .mutation(
-            async ({ input, ctx }) => {
-                const { email, password } = input;
+        .mutation(async ({ input, ctx }) => {
+            const { email, password } = input;
 
-                const { id, token } = await userService.signInUserWithEmailAndPassword({
-                    email,
-                    password
-                });
-                ctx.setCookie("token", token, {
-                    httpOnly: true,
-                    secure: false,
-                    sameSite: "strict",
-                    maxAge: 30 * 24 * 60 * 60 * 1000,
-                });
-                return {
-                    id,
-                }
-            }
-        )
-})
-
+            const { id, token } = await userService.signInUserWithEmailAndPassword({
+                email,
+                password,
+            });
+            ctx.setCookie("token", token, {
+                httpOnly: true,
+                secure: false,
+                sameSite: "strict",
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+            return {
+                id,
+            };
+        }),
+    getLoggedInUserInfo: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "GET",
+                path: getPath("/getLoggedInUserInfo"),
+                tags: TAGS,
+            },
+        })
+        .input(getLoggedInUserInfoInputModel)
+        .output(getLoggedInUserInfoOutputModel)
+        .query(async ({ ctx }) => {
+            const user = await userService.getUserInfoById(ctx.user!.id);
+            return user;
+        }),
+});

@@ -9,56 +9,58 @@ import { apiReference } from "@scalar/express-api-reference";
 import { serverRouter, createContext } from "@repo/trpc/server";
 
 import { env } from "./env";
+import cookieParser from "cookie-parser";
 
 export const app = express();
 const openApiDocument = generateOpenApiDocument(serverRouter, {
-  title: "notYourTypeForm",
-  version: "1.0.0",
-  baseUrl: env.BASE_URL.concat("/api"),
+    title: "notYourTypeForm",
+    version: "1.0.0",
+    baseUrl: env.BASE_URL.concat("/api"),
 });
 
 // cors config
 app.use(
-  cors({
-    origin: env.WEB_URL,
-    credentials: true, // access to cookies we'll get
-  }),
+    cors({
+        origin: env.WEB_URL,
+        credentials: true, // access to cookies we'll get
+    }),
 );
 
-
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/", (req, res) => {
-  return res.json({ message: "Streamyst is up and running..." });
+    return res.json({ message: "Streamyst is up and running..." });
 });
 
 app.get("/health", (req, res) => {
-  return res.json({ message: "Streamyst server is healthy", healthy: true });
+    return res.json({ message: "Streamyst server is healthy", healthy: true });
 });
 
 logger.debug(`openapi.json: ${env.BASE_URL}/openapi.json`);
 app.get("/openapi.json", (req, res) => {
-  return res.json(openApiDocument);
+    return res.json(openApiDocument);
 });
 
 logger.debug(`docs: ${env.BASE_URL}/docs`);
 app.use("/docs", apiReference({ url: "/openapi.json" }));
 
 app.use(
-  "/api",
-  createOpenApiExpressMiddleware({
-    router: serverRouter,
-    createContext,
-  }),
+    "/api",
+    createOpenApiExpressMiddleware({
+        router: serverRouter,
+        createContext,
+    }),
 );
 
 app.use(
-  "/trpc",
-  trpcExpress.createExpressMiddleware({
-    router: serverRouter,
-    createContext,
-  }),
+    "/trpc",
+    trpcExpress.createExpressMiddleware({
+        router: serverRouter,
+        createContext,
+    }),
 );
+
 // all req fired by the nextjs application ------> express server(doesn't have and routes or anything) ------> firisther sends it to trpc packages
 //acting like a proxy
 
