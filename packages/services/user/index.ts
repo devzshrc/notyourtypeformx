@@ -3,13 +3,16 @@
 import {
     createUserWithEmailAndPassword, type CreateUserWithEmailAndPassword,
     generateUserTokenPayload,
-    type GenerateUserTokenPayloadType
+    type GenerateUserTokenPayloadType,
+    signInUserWithEmailAndPassword,
+    type SignInUserWithEmailAndPasswordType
 } from "./model"
 import { usersTable } from "@repo/database/models/user"
 import { db, eq } from "@repo/database"
 import bcrypt from "bcryptjs";
 import * as JWT from "jsonwebtoken";
 import { env } from "../env"
+import { isValid } from "zod/v3";
 export default class UserService {
     //getUserByEmail
     private async getUserByEmail(email: string) {
@@ -55,4 +58,28 @@ export default class UserService {
             token
         }
     }
+
+    public async signInUserWithEmailAndPassword(payload: SignInUserWithEmailAndPasswordType) {
+        const { email, password } = await signInUserWithEmailAndPassword.parseAsync(payload);
+
+        const existingUser = await this.getUserByEmail(email)
+        if (!existingUser) {
+            throw new Error("User with this email does not exist")
+        }
+        if (!existingUser.passwordHash) {
+            throw new Error("Invalid Authentication method")
+        }
+        const isValid = await bcrypt.compare(password, existingUser.passwordHash);
+        if (!isValid) {
+            throw new Error("Invalid email address or password");
+        }
+        const { token } = await this.generateUserToken({ id: existingUser.id });
+
+        return {
+            id: existingUser.id,
+            token
+        }
+    };
+
 }
+
