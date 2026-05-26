@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-const envSchema = z.object({});
+const envSchema = z.object({
+    JWT_SECRET: z.string().describe("Secret key for JWT tokens")
+});
 
 function createEnv(env: NodeJS.ProcessEnv) {
     const safeParseResult = envSchema.safeParse(env);
