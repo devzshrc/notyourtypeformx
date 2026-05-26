@@ -4,25 +4,25 @@ import "./globals.css";
 import { GlobalProviders } from "~/providers/global";
 
 const familjenGrotesk = Familjen_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-familjen-grotesk",
+    subsets: ["latin"],
+    variable: "--font-familjen-grotesk",
 });
 
 export const metadata: Metadata = {
-  title: "Streamyst",
-  description: "Media Forwarding",
+    title: "notYourTypeForm",
+    description: "form generation",
 };
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" className="dark">
-      <body className={familjenGrotesk.className}>
-        <GlobalProviders>{children}</GlobalProviders>
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en" className="dark">
+            <body className={familjenGrotesk.className}>
+                <GlobalProviders>{children}</GlobalProviders>
+            </body>
+        </html>
+    );
 }
