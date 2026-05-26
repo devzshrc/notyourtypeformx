@@ -29,14 +29,14 @@ export default function SigninPage() {
     };
 
     return (
-        <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
             <form
                 onSubmit={handleSubmit}
-                className="w-full max-w-sm space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl backdrop-blur"
+                className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-6 shadow-2xl"
             >
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-                    <p className="text-sm text-white/60">
+                    <p className="text-sm text-muted-foreground">
                         Enter your email and password to continue.
                     </p>
                 </div>
@@ -49,7 +49,6 @@ export default function SigninPage() {
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
                         placeholder="jane@example.com"
-                        className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
                     />
                 </div>
 
@@ -61,18 +60,13 @@ export default function SigninPage() {
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         placeholder="••••••••"
-                        className="bg-black/40 border-white/10 text-white placeholder:text-white/30"
                     />
                 </div>
 
-                {error ? <p className="text-sm text-red-400">{error.message}</p> : null}
-                {isSuccess ? <p className="text-sm text-emerald-400">Signed in.</p> : null}
+                {error ? <p className="text-sm text-destructive">{error.message}</p> : null}
+                {isSuccess ? <p className="text-sm text-green-500">Signed in.</p> : null}
 
-                <Button
-                    type="submit"
-                    className="w-full bg-white text-black hover:bg-white/90"
-                    disabled={isPending}
-                >
+                <Button type="submit" className="w-full" disabled={isPending}>
                     {isPending ? "Signing in..." : "Sign in"}
                 </Button>
             </form>

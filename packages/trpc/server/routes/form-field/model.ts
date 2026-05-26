@@ -1,6 +1,21 @@
 import { z } from "zod";
 
-const fieldTypeSchema = z.enum(["TEXT", "EMAIL", "NUMBER", "YES_NO", "PASSWORD"]);
+const fieldTypeSchema = z.enum([
+    "TEXT",
+    "EMAIL",
+    "NUMBER",
+    "YES_NO",
+    "PASSWORD",
+    "LONG_TEXT",
+    "MULTIPLE_CHOICE",
+    "CHECKBOXES",
+    "DROPDOWN",
+    "RATING",
+    "DATE",
+    "PHONE",
+    "WEBSITE",
+    "STATEMENT",
+]);
 
 export const addFieldInputModel = z.object({
     formId: z.string().uuid(),
@@ -10,6 +25,9 @@ export const addFieldInputModel = z.object({
     isRequired: z.boolean().default(false),
     index: z.number().int().min(0),
     type: fieldTypeSchema,
+    options: z.array(z.string().max(200)).optional(),
+    logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
+    scores: z.record(z.string(), z.number()).optional(),
 });
 export const addFieldOutputModel = z.object({ id: z.string() });
 
@@ -25,6 +43,9 @@ export const listFieldsOutputModel = z.array(
         isRequired: z.boolean(),
         index: z.string(),
         type: fieldTypeSchema,
+        options: z.array(z.string()),
+        logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).nullable(),
+        scores: z.record(z.string(), z.number()).nullable(),
         createdAt: z.date().nullable(),
         updatedAt: z.date().nullable(),
     }),
@@ -39,6 +60,9 @@ export const updateFieldInputModel = z.object({
     isRequired: z.boolean().optional(),
     index: z.number().int().min(0).optional(),
     type: fieldTypeSchema.optional(),
+    options: z.array(z.string().max(200)).optional(),
+    logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
+    scores: z.record(z.string(), z.number()).optional(),
 });
 export const updateFieldOutputModel = z.object({ id: z.string() });
 

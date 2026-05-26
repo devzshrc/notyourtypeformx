@@ -7,6 +7,7 @@ import {
     text,
     boolean,
     numeric,
+    jsonb,
 } from "drizzle-orm/pg-core";
 import { usersTable } from "./user";
 import { formsTable } from "./form";
@@ -18,6 +19,15 @@ export const fieldTypeEnum = pgEnum("field_type_enum", [
     "NUMBER",
     "YES_NO",
     "PASSWORD",
+    "LONG_TEXT",
+    "MULTIPLE_CHOICE",
+    "CHECKBOXES",
+    "DROPDOWN",
+    "RATING",
+    "DATE",
+    "PHONE",
+    "WEBSITE",
+    "STATEMENT",
 ]);
 
 export const formsFieldsTable = pgTable("forms_fields", {
@@ -30,6 +40,8 @@ export const formsFieldsTable = pgTable("forms_fields", {
     isRequired: boolean("is_required").default(false).notNull(),
     index: numeric("index").notNull(),
     type: fieldTypeEnum("type").notNull(),
+    logic: jsonb("logic").$type<{ equals: string; goTo: string }[]>(),
+    scores: jsonb("scores").$type<Record<string, number>>(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
 });

@@ -23,6 +23,12 @@ export const updateFormInput = z.object({
     userId: z.uuid(),
     title: z.string().max(50).optional(),
     description: z.string().max(300).optional(),
+    welcomeTitle: z.string().max(120).optional(),
+    welcomeDescription: z.string().optional(),
+    endingTitle: z.string().max(120).optional(),
+    endingDescription: z.string().optional(),
+    status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+    hiddenFields: z.array(z.string().max(100)).optional(),
 });
 export type UpdateFormInputType = z.infer<typeof updateFormInput>;
 

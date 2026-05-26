@@ -108,3 +108,13 @@ export function useGetPublicForm(formId: string) {
     const { data: form, error, isLoading } = trpc.submission.getPublicForm.useQuery({ formId });
     return { form, error, isLoading };
 }
+
+export function useRecordEvent() {
+    const mutation = trpc.submission.recordEvent.useMutation();
+    return { recordEvent: mutation.mutate };
+}
+
+export function useGetAnalytics(formId: string) {
+    const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId });
+    return { analytics, isLoading };
+}

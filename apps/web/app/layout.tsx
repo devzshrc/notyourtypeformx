@@ -1,11 +1,21 @@
 import type { Metadata } from "next";
-import { Familjen_Grotesk } from "next/font/google";
+import { Roboto, Playfair_Display, Fira_Code } from "next/font/google";
 import "./globals.css";
 import { GlobalProviders } from "~/providers/global";
 
-const familjenGrotesk = Familjen_Grotesk({
+const fontSans = Roboto({
     subsets: ["latin"],
-    variable: "--font-familjen-grotesk",
+    variable: "--font-sans",
+});
+
+const fontSerif = Playfair_Display({
+    subsets: ["latin"],
+    variable: "--font-serif",
+});
+
+const fontMono = Fira_Code({
+    subsets: ["latin"],
+    variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -19,8 +29,8 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="dark">
-            <body className={familjenGrotesk.className}>
+        <html lang="en" suppressHydrationWarning>
+            <body className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} font-sans antialiased`}>
                 <GlobalProviders>{children}</GlobalProviders>
             </body>
         </html>

@@ -4,7 +4,8 @@ import { submissionService } from "../../services";
 import { db } from "@repo/database";
 import { formsTable } from "@repo/database/models/form";
 import { formsFieldsTable } from "@repo/database/models/form-field";
-import { eq, asc } from "drizzle-orm";
+import { formFieldOptionsTable } from "@repo/database/models/form-field-option";
+import { eq, asc, inArray } from "drizzle-orm";
 import {
     submitFormInputModel,
     submitFormOutputModel,
@@ -12,6 +13,10 @@ import {
     listSubmissionsOutputModel,
     getPublicFormInputModel,
     getPublicFormOutputModel,
+    recordEventInputModel,
+    recordEventOutputModel,
+    getAnalyticsInputModel,
+    getAnalyticsOutputModel,
 } from "./model";
 
 const getPath = generatePath("/submission");
@@ -23,18 +28,39 @@ export const submissionRouter = router({
         .input(getPublicFormInputModel)
         .output(getPublicFormOutputModel)
         .query(async ({ input }) => {
-            const form = await db.select().from(formsTable).where(eq(formsTable.id, input.formId));
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.formId);
+            const form = await db
+                .select()
+                .from(formsTable)
+                .where(isUuid ? eq(formsTable.id, input.formId) : eq(formsTable.slug, input.formId));
             if (!form?.[0]) throw new Error("Form not found");
             const fields = await db
                 .select()
                 .from(formsFieldsTable)
-                .where(eq(formsFieldsTable.formId, input.formId))
+                .where(eq(formsFieldsTable.formId, form[0].id))
                 .orderBy(asc(formsFieldsTable.index));
+            const options = fields.length
+                ? await db
+                      .select()
+                      .from(formFieldOptionsTable)
+                      .where(inArray(formFieldOptionsTable.fieldId, fields.map((f) => f.id)))
+                      .orderBy(asc(formFieldOptionsTable.index))
+                : [];
             return {
                 id: form[0].id,
+                status: form[0].status,
+                slug: form[0].slug,
+                hiddenFields: form[0].hiddenFields,
                 title: form[0].title,
                 description: form[0].description,
-                fields,
+                welcomeTitle: form[0].welcomeTitle,
+                welcomeDescription: form[0].welcomeDescription,
+                endingTitle: form[0].endingTitle,
+                endingDescription: form[0].endingDescription,
+                fields: fields.map((f) => ({
+                    ...f,
+                    options: options.filter((o) => o.fieldId === f.id).map((o) => o.label),
+                })),
             };
         }),
 
@@ -52,5 +78,21 @@ export const submissionRouter = router({
         .output(listSubmissionsOutputModel)
         .query(async ({ input, ctx }) => {
             return await submissionService.listSubmissions({ formId: input.formId, userId: ctx.user.id });
+        }),
+
+    recordEvent: publicProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/recordEvent"), tags: TAGS } })
+        .input(recordEventInputModel)
+        .output(recordEventOutputModel)
+        .mutation(async ({ input }) => {
+            return await submissionService.recordEvent(input);
+        }),
+
+    getAnalytics: authenticatedProcedure
+        .meta({ openapi: { method: "GET", path: getPath("/getAnalytics"), tags: TAGS, protect: true } })
+        .input(getAnalyticsInputModel)
+        .output(getAnalyticsOutputModel)
+        .query(async ({ input, ctx }) => {
+            return await submissionService.getAnalytics({ formId: input.formId, userId: ctx.user.id });
         }),
 });

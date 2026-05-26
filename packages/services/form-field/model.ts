@@ -1,6 +1,21 @@
 import { z } from "zod";
 
-const fieldTypeSchema = z.enum(["TEXT", "EMAIL", "NUMBER", "YES_NO", "PASSWORD"]);
+const fieldTypeSchema = z.enum([
+    "TEXT",
+    "EMAIL",
+    "NUMBER",
+    "YES_NO",
+    "PASSWORD",
+    "LONG_TEXT",
+    "MULTIPLE_CHOICE",
+    "CHECKBOXES",
+    "DROPDOWN",
+    "RATING",
+    "DATE",
+    "PHONE",
+    "WEBSITE",
+    "STATEMENT",
+]);
 
 export const addFieldInput = z.object({
     formId: z.uuid(),
@@ -11,6 +26,9 @@ export const addFieldInput = z.object({
     isRequired: z.boolean().default(false),
     index: z.number().int().min(0),
     type: fieldTypeSchema,
+    options: z.array(z.string().max(200)).optional(),
+    logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
+    scores: z.record(z.string(), z.number()).optional(),
 });
 export type AddFieldInputType = z.infer<typeof addFieldInput>;
 
@@ -30,6 +48,9 @@ export const updateFieldInput = z.object({
     isRequired: z.boolean().optional(),
     index: z.number().int().min(0).optional(),
     type: fieldTypeSchema.optional(),
+    options: z.array(z.string().max(200)).optional(),
+    logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
+    scores: z.record(z.string(), z.number()).optional(),
 });
 export type UpdateFieldInputType = z.infer<typeof updateFieldInput>;
 

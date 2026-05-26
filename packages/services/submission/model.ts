@@ -11,3 +11,15 @@ export const listSubmissionsInput = z.object({
     userId: z.uuid(),
 });
 export type ListSubmissionsInputType = z.infer<typeof listSubmissionsInput>;
+
+export const recordEventInput = z.object({
+    formId: z.uuid(),
+    type: z.enum(["VIEW", "START"]),
+});
+export type RecordEventInputType = z.infer<typeof recordEventInput>;
+
+export const getAnalyticsInput = z.object({
+    formId: z.uuid(),
+    userId: z.uuid(),
+});
+export type GetAnalyticsInputType = z.infer<typeof getAnalyticsInput>;
