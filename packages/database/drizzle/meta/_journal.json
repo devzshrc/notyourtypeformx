@@ -15,6 +15,13 @@
       "when": 1779822679746,
       "tag": "0001_tiresome_tarot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779828586275,
+      "tag": "0002_hot_nextwave",
+      "breakpoints": true
     }
   ]
 }

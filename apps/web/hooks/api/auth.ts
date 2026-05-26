@@ -76,3 +76,13 @@ export function useUser() {
         status,
     };
 }
+
+export function useLogout() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.auth.logout.useMutation({
+        onSuccess: async () => {
+            await utils.auth.getLoggedInUserInfo.invalidate();
+        },
+    });
+    return { logoutAsync: mutation.mutateAsync, isPending: mutation.isPending };
+}

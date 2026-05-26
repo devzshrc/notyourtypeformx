@@ -26,3 +26,6 @@ export const getLoggedInUserInfoOutputModel = z.object({
     fullName: z.string().describe("Name of the user"),
     email: z.email().describe("Email of the user"),
 });
+
+export const logoutInputModel = z.undefined();
+export const logoutOutputModel = z.object({ success: z.boolean() });

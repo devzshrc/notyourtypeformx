@@ -12,6 +12,8 @@ import {
     getLoggedInUserInfoOutputModel,
     signInUserWithEmailAndPasswordInputModel,
     signInUserWithEmailAndPasswordOutputModel,
+    logoutInputModel,
+    logoutOutputModel,
 } from "./model";
 import { userService } from "../../services";
 import { generatePath } from "../../utils/path-generator";
@@ -91,5 +93,20 @@ export const authRouter = router({
         .query(async ({ ctx }) => {
             const user = await userService.getUserInfoById(ctx.user!.id);
             return user;
+        }),
+    logout: authenticatedProcedure
+        .meta({
+            openapi: {
+                method: "POST",
+                path: getPath("/logout"),
+                tags: TAGS,
+                protect: true,
+            },
+        })
+        .input(logoutInputModel)
+        .output(logoutOutputModel)
+        .mutation(async ({ ctx }) => {
+            ctx.clearCookie("token");
+            return { success: true };
         }),
 });
