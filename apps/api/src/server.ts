@@ -17,13 +17,14 @@ const openApiDocument = generateOpenApiDocument(serverRouter, {
   baseUrl: env.BASE_URL.concat("/api"),
 });
 
-if (env.NODE_ENV !== "prod") {
-  app.use(
-    cors({
-      origin: "*",
-    }),
-  );
-}
+// cors config
+app.use(
+  cors({
+    origin: env.WEB_URL,
+    credentials: true, // access to cookies we'll get
+  }),
+);
+
 
 app.use(express.json());
 
@@ -58,5 +59,7 @@ app.use(
     createContext,
   }),
 );
+// all req fired by the nextjs application ------> express server(doesn't have and routes or anything) ------> firisther sends it to trpc packages
+//acting like a proxy
 
 export default app;
