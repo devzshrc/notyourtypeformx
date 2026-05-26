@@ -7,16 +7,10 @@ import { formsFieldsTable } from "@repo/database/models/form-field";
 import { formFieldOptionsTable } from "@repo/database/models/form-field-option";
 import { eq, asc, inArray } from "drizzle-orm";
 import {
-    submitFormInputModel,
-    submitFormOutputModel,
-    listSubmissionsInputModel,
-    listSubmissionsOutputModel,
-    getPublicFormInputModel,
-    getPublicFormOutputModel,
-    recordEventInputModel,
-    recordEventOutputModel,
-    getAnalyticsInputModel,
-    getAnalyticsOutputModel,
+    submitFormInputModel, submitFormOutputModel, listSubmissionsInputModel, listSubmissionsOutputModel,
+    getPublicFormInputModel, getPublicFormOutputModel, recordEventInputModel, recordEventOutputModel,
+    getAnalyticsInputModel, getAnalyticsOutputModel, verifyFormPasswordInputModel, verifyFormPasswordOutputModel,
+    getAdminStatsInputModel, getAdminStatsOutputModel, getSubmissionTimeSeriesInputModel, getSubmissionTimeSeriesOutputModel,
 } from "./model";
 
 const getPath = generatePath("/submission");
@@ -51,6 +45,7 @@ export const submissionRouter = router({
                 status: form[0].status,
                 slug: form[0].slug,
                 hiddenFields: form[0].hiddenFields,
+                hasPassword: Boolean(form[0].password),
                 title: form[0].title,
                 description: form[0].description,
                 welcomeTitle: form[0].welcomeTitle,
@@ -77,7 +72,7 @@ export const submissionRouter = router({
         .input(listSubmissionsInputModel)
         .output(listSubmissionsOutputModel)
         .query(async ({ input, ctx }) => {
-            return await submissionService.listSubmissions({ formId: input.formId, userId: ctx.user.id });
+            return await submissionService.listSubmissions({ ...input, userId: ctx.user.id });
         }),
 
     recordEvent: publicProcedure
@@ -94,5 +89,29 @@ export const submissionRouter = router({
         .output(getAnalyticsOutputModel)
         .query(async ({ input, ctx }) => {
             return await submissionService.getAnalytics({ formId: input.formId, userId: ctx.user.id });
+        }),
+
+    verifyFormPassword: publicProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/verifyFormPassword"), tags: TAGS } })
+        .input(verifyFormPasswordInputModel)
+        .output(verifyFormPasswordOutputModel)
+        .mutation(async ({ input }) => {
+            return await submissionService.verifyFormPassword(input);
+        }),
+
+    getAdminStats: authenticatedProcedure
+        .meta({ openapi: { method: "GET", path: getPath("/getAdminStats"), tags: TAGS, protect: true } })
+        .input(getAdminStatsInputModel)
+        .output(getAdminStatsOutputModel)
+        .query(async ({ ctx }) => {
+            return await submissionService.getAdminStats({ userId: ctx.user.id });
+        }),
+
+    getSubmissionTimeSeries: authenticatedProcedure
+        .meta({ openapi: { method: "GET", path: getPath("/getSubmissionTimeSeries"), tags: TAGS, protect: true } })
+        .input(getSubmissionTimeSeriesInputModel)
+        .output(getSubmissionTimeSeriesOutputModel)
+        .query(async ({ input, ctx }) => {
+            return await submissionService.getSubmissionTimeSeries({ formId: input.formId, userId: ctx.user.id, days: input.days });
         }),
 });

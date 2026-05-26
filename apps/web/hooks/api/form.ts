@@ -17,8 +17,8 @@ export function useCreateForm() {
     };
 }
 
-export function useListForms() {
-    const { data: forms, error, isFetching, isLoading, status } = trpc.form.listForms.useQuery();
+export function useListForms(includeArchived?: boolean) {
+    const { data: forms, error, isFetching, isLoading, status } = trpc.form.listForms.useQuery({ includeArchived });
     return { forms, error, isFetching, isLoading, status };
 }
 
@@ -32,6 +32,7 @@ export function useUpdateForm() {
     const mutation = trpc.form.updateForm.useMutation({
         onSuccess: async () => {
             await utils.form.listForms.invalidate();
+            await utils.form.getForm.invalidate();
         },
     });
     return { updateFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
@@ -45,6 +46,26 @@ export function useDeleteForm() {
         },
     });
     return { deleteFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useCloneForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.cloneForm.useMutation({
+        onSuccess: async () => {
+            await utils.form.listForms.invalidate();
+        },
+    });
+    return { cloneFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useArchiveForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.archiveForm.useMutation({
+        onSuccess: async () => {
+            await utils.form.listForms.invalidate();
+        },
+    });
+    return { archiveFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
 }
 
 // Form Fields
@@ -99,9 +120,9 @@ export function useSubmitForm() {
     return { submitFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error, isSuccess: mutation.isSuccess };
 }
 
-export function useListSubmissions(formId: string) {
-    const { data: submissions, error, isLoading } = trpc.submission.listSubmissions.useQuery({ formId });
-    return { submissions, error, isLoading };
+export function useListSubmissions(formId: string, opts?: { limit?: number; offset?: number; startDate?: string; endDate?: string }) {
+    const { data, error, isLoading } = trpc.submission.listSubmissions.useQuery({ formId, ...opts });
+    return { submissions: data?.rows, total: data?.total ?? 0, error, isLoading };
 }
 
 export function useGetPublicForm(formId: string) {
@@ -117,4 +138,32 @@ export function useRecordEvent() {
 export function useGetAnalytics(formId: string) {
     const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId });
     return { analytics, isLoading };
+}
+
+export function useSubmissionTimeSeries(formId: string, days?: number) {
+    const { data: timeSeries, isLoading } = trpc.submission.getSubmissionTimeSeries.useQuery({ formId, days });
+    return { timeSeries, isLoading };
+}
+
+export function useVerifyFormPassword() {
+    const mutation = trpc.submission.verifyFormPassword.useMutation();
+    return { verifyPasswordAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useAdminStats() {
+    const { data: stats, isLoading } = trpc.submission.getAdminStats.useQuery();
+    return { stats, isLoading };
+}
+
+export function useListPublicForms(onlyTemplates?: boolean) {
+    const { data: forms, isLoading } = trpc.form.listPublicForms.useQuery({ onlyTemplates });
+    return { forms, isLoading };
+}
+
+export function useClonePublicForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.clonePublicForm.useMutation({
+        onSuccess: async () => { await utils.form.listForms.invalidate(); },
+    });
+    return { clonePublicFormAsync: mutation.mutateAsync, isPending: mutation.isPending };
 }

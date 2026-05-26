@@ -20,15 +20,24 @@ export const getAnalyticsOutputModel = z.object({
     completionRate: z.number(),
 });
 
-export const listSubmissionsInputModel = z.object({ formId: z.string().uuid() });
-export const listSubmissionsOutputModel = z.array(
-    z.object({
-        id: z.string(),
-        formId: z.string(),
-        data: z.unknown(),
-        createdAt: z.date().nullable(),
-    }),
-);
+export const listSubmissionsInputModel = z.object({
+    formId: z.string().uuid(),
+    limit: z.number().int().min(1).max(100).optional(),
+    offset: z.number().int().min(0).optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+});
+export const listSubmissionsOutputModel = z.object({
+    rows: z.array(
+        z.object({
+            id: z.string(),
+            formId: z.string(),
+            data: z.unknown(),
+            createdAt: z.date().nullable(),
+        }),
+    ),
+    total: z.number(),
+});
 
 export const getPublicFormInputModel = z.object({ formId: z.string() });
 export const getPublicFormOutputModel = z.object({
@@ -36,6 +45,7 @@ export const getPublicFormOutputModel = z.object({
     status: z.enum(["DRAFT", "PUBLISHED"]),
     slug: z.string().nullable().optional(),
     hiddenFields: z.array(z.string()).nullable().optional(),
+    hasPassword: z.boolean(),
     title: z.string(),
     description: z.string().nullable().optional(),
     welcomeTitle: z.string().nullable().optional(),
@@ -51,20 +61,8 @@ export const getPublicFormOutputModel = z.object({
             placeholder: z.string().nullable(),
             isRequired: z.boolean(),
             type: z.enum([
-                "TEXT",
-                "EMAIL",
-                "NUMBER",
-                "YES_NO",
-                "PASSWORD",
-                "LONG_TEXT",
-                "MULTIPLE_CHOICE",
-                "CHECKBOXES",
-                "DROPDOWN",
-                "RATING",
-                "DATE",
-                "PHONE",
-                "WEBSITE",
-                "STATEMENT",
+                "TEXT", "EMAIL", "NUMBER", "YES_NO", "PASSWORD", "LONG_TEXT",
+                "MULTIPLE_CHOICE", "CHECKBOXES", "DROPDOWN", "RATING", "DATE", "PHONE", "WEBSITE", "STATEMENT",
             ]),
             index: z.string(),
             options: z.array(z.string()),
@@ -73,3 +71,20 @@ export const getPublicFormOutputModel = z.object({
         }),
     ),
 });
+
+export const verifyFormPasswordInputModel = z.object({
+    formId: z.string(),
+    password: z.string(),
+});
+export const verifyFormPasswordOutputModel = z.object({ valid: z.boolean() });
+
+export const getAdminStatsInputModel = z.undefined();
+export const getAdminStatsOutputModel = z.object({
+    totalForms: z.number(),
+    totalSubmissions: z.number(),
+    totalViews: z.number(),
+    avgCompletionRate: z.number(),
+});
+
+export const getSubmissionTimeSeriesInputModel = z.object({ formId: z.string().uuid(), days: z.number().int().min(1).max(90).optional() });
+export const getSubmissionTimeSeriesOutputModel = z.array(z.object({ date: z.string(), count: z.number() }));

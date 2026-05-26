@@ -3,7 +3,7 @@ import { formsTable } from "@repo/database/models/form";
 import { formsFieldsTable } from "@repo/database/models/form-field";
 import { submissionsTable } from "@repo/database/models/submission";
 import { formEventsTable } from "@repo/database/models/form-event";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
 import {
     submitFormInput,
     type SubmitFormInputType,
@@ -13,28 +13,40 @@ import {
     type RecordEventInputType,
     getAnalyticsInput,
     type GetAnalyticsInputType,
+    verifyFormPasswordInput,
+    type VerifyFormPasswordInputType,
+    getAdminStatsInput,
+    type GetAdminStatsInputType,
+    getSubmissionTimeSeriesInput,
+    type GetSubmissionTimeSeriesInputType,
 } from "./model";
 
 export default class SubmissionService {
     public async submitForm(payload: SubmitFormInputType) {
         const { formId, data } = await submitFormInput.parseAsync(payload);
-        // Verify form exists and is accepting responses
         const form = await db
-            .select({ id: formsTable.id, status: formsTable.status })
+            .select({ id: formsTable.id, status: formsTable.status, expiresAt: formsTable.expiresAt, maxResponses: formsTable.maxResponses, password: formsTable.password })
             .from(formsTable)
             .where(eq(formsTable.id, formId));
         if (!form?.[0]) throw new Error("Form not found");
         if (form[0].status !== "PUBLISHED") throw new Error("This form is not accepting responses");
-        // Get required fields and validate
+        // Check expiry
+        if (form[0].expiresAt && new Date() > form[0].expiresAt) {
+            throw new Error("This form has expired and is no longer accepting responses");
+        }
+        // Check max responses
+        if (form[0].maxResponses) {
+            const countResult = await db.select({ c: count() }).from(submissionsTable).where(eq(submissionsTable.formId, formId));
+            if ((countResult[0]?.c ?? 0) >= form[0].maxResponses) {
+                throw new Error("This form has reached its maximum number of responses");
+            }
+        }
+        // Validate required fields
         const fields = await db.select().from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
         for (const field of fields) {
             if (!field.isRequired) continue;
             const v = data[field.labelKey];
-            const missing =
-                v === undefined ||
-                v === null ||
-                (typeof v === "string" && v.trim() === "") ||
-                (Array.isArray(v) && v.length === 0);
+            const missing = v === undefined || v === null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0);
             if (missing) throw new Error(`Field "${field.label}" is required`);
         }
         const result = await db
@@ -46,18 +58,24 @@ export default class SubmissionService {
     }
 
     public async listSubmissions(payload: ListSubmissionsInputType) {
-        const { formId, userId } = await listSubmissionsInput.parseAsync(payload);
-        // Verify ownership
+        const { formId, userId, limit = 50, offset = 0, startDate, endDate } = await listSubmissionsInput.parseAsync(payload);
         const form = await db
             .select({ id: formsTable.id })
             .from(formsTable)
             .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
         if (!form?.[0]) throw new Error("Form not found");
-        return await db
+        const conditions = [eq(submissionsTable.formId, formId)];
+        if (startDate) conditions.push(gte(submissionsTable.createdAt, new Date(startDate)));
+        if (endDate) conditions.push(lte(submissionsTable.createdAt, new Date(endDate)));
+        const rows = await db
             .select()
             .from(submissionsTable)
-            .where(eq(submissionsTable.formId, formId))
-            .orderBy(desc(submissionsTable.createdAt));
+            .where(and(...conditions))
+            .orderBy(desc(submissionsTable.createdAt))
+            .limit(limit)
+            .offset(offset);
+        const totalResult = await db.select({ c: count() }).from(submissionsTable).where(and(...conditions));
+        return { rows, total: totalResult[0]?.c ?? 0 };
     }
 
     public async recordEvent(payload: RecordEventInputType) {
@@ -73,22 +91,60 @@ export default class SubmissionService {
             .from(formsTable)
             .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
         if (!form?.[0]) throw new Error("Form not found");
-
-        const countWhere = async (where: ReturnType<typeof eq>) =>
-            (await db.select({ c: count() }).from(formEventsTable).where(where))[0]?.c ?? 0;
-
-        const views = await countWhere(
-            and(eq(formEventsTable.formId, formId), eq(formEventsTable.type, "VIEW"))!,
-        );
-        const starts = await countWhere(
-            and(eq(formEventsTable.formId, formId), eq(formEventsTable.type, "START"))!,
-        );
-        const subRow = await db
-            .select({ c: count() })
-            .from(submissionsTable)
-            .where(eq(submissionsTable.formId, formId));
-        const submissions = subRow[0]?.c ?? 0;
+        const views = (await db.select({ c: count() }).from(formEventsTable).where(and(eq(formEventsTable.formId, formId), eq(formEventsTable.type, "VIEW"))))[0]?.c ?? 0;
+        const starts = (await db.select({ c: count() }).from(formEventsTable).where(and(eq(formEventsTable.formId, formId), eq(formEventsTable.type, "START"))))[0]?.c ?? 0;
+        const submissions = (await db.select({ c: count() }).from(submissionsTable).where(eq(submissionsTable.formId, formId)))[0]?.c ?? 0;
         const completionRate = views > 0 ? Math.round((submissions / views) * 100) : 0;
         return { views, starts, submissions, completionRate };
+    }
+
+    public async verifyFormPassword(payload: VerifyFormPasswordInputType) {
+        const { formId, password } = await verifyFormPasswordInput.parseAsync(payload);
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(formId);
+        const form = await db
+            .select({ password: formsTable.password })
+            .from(formsTable)
+            .where(isUuid ? eq(formsTable.id, formId) : eq(formsTable.slug, formId));
+        if (!form?.[0]) throw new Error("Form not found");
+        if (!form[0].password) return { valid: true };
+        return { valid: form[0].password === password };
+    }
+
+    public async getAdminStats(payload: GetAdminStatsInputType) {
+        const { userId } = await getAdminStatsInput.parseAsync(payload);
+        const userForms = await db
+            .select({ id: formsTable.id })
+            .from(formsTable)
+            .where(eq(formsTable.createdBy, userId));
+        const formIds = userForms.map((f) => f.id);
+        if (formIds.length === 0) return { totalForms: 0, totalSubmissions: 0, totalViews: 0, avgCompletionRate: 0 };
+        const totalForms = formIds.length;
+        const totalSubmissions = (await db.select({ c: count() }).from(submissionsTable).where(sql`${submissionsTable.formId} IN (${sql.join(formIds.map(id => sql`${id}`), sql`, `)})`))[0]?.c ?? 0;
+        const totalViews = (await db.select({ c: count() }).from(formEventsTable).where(and(sql`${formEventsTable.formId} IN (${sql.join(formIds.map(id => sql`${id}`), sql`, `)})`, eq(formEventsTable.type, "VIEW"))))[0]?.c ?? 0;
+        const avgCompletionRate = totalViews > 0 ? Math.round((totalSubmissions / totalViews) * 100) : 0;
+        return { totalForms, totalSubmissions, totalViews, avgCompletionRate };
+    }
+
+    public async getSubmissionTimeSeries(payload: GetSubmissionTimeSeriesInputType) {
+        const { formId, userId, days = 30 } = await getSubmissionTimeSeriesInput.parseAsync(payload);
+        const form = await db.select({ id: formsTable.id }).from(formsTable).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
+        if (!form?.[0]) throw new Error("Form not found");
+        const since = new Date();
+        since.setDate(since.getDate() - days);
+        const rows = await db.select({ createdAt: submissionsTable.createdAt }).from(submissionsTable).where(and(eq(submissionsTable.formId, formId), gte(submissionsTable.createdAt, since)));
+        // Group by date
+        const map: Record<string, number> = {};
+        for (let i = 0; i < days; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - (days - 1 - i));
+            map[d.toISOString().slice(0, 10)] = 0;
+        }
+        for (const row of rows) {
+            if (row.createdAt) {
+                const key = row.createdAt.toISOString().slice(0, 10);
+                if (key in map) map[key] = (map[key] ?? 0) + 1;
+            }
+        }
+        return Object.entries(map).map(([date, count]) => ({ date, count }));
     }
 }

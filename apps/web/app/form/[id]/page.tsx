@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Star } from "lucide-react";
-import { useGetPublicForm, useSubmitForm, useRecordEvent } from "~/hooks/api/form";
+import { ArrowLeft, ArrowRight, Star, Lock } from "lucide-react";
+import { useGetPublicForm, useSubmitForm, useRecordEvent, useVerifyFormPassword } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -84,8 +84,13 @@ export default function PublicFormPage() {
     const { form, isLoading, error: fetchError } = useGetPublicForm(formId);
     const { submitFormAsync, isPending, isSuccess, error: submitError } = useSubmitForm();
     const { recordEvent } = useRecordEvent();
+    const { verifyPasswordAsync, isPending: verifyingPassword } = useVerifyFormPassword();
     const viewedRef = useRef(false);
     const startedRef = useRef(false);
+
+    const [passwordUnlocked, setPasswordUnlocked] = useState(false);
+    const [passwordInput, setPasswordInput] = useState("");
+    const [passwordError, setPasswordError] = useState("");
 
     const [hasWelcome, setHasWelcome] = useState(false);
     const [started, setStarted] = useState(false);
@@ -132,6 +137,39 @@ export default function PublicFormPage() {
 
     const fields = form.fields as Field[];
     const isDraft = form.status !== "PUBLISHED";
+
+    // Password gate
+    if (form.hasPassword && !passwordUnlocked) {
+        const handlePasswordSubmit = async () => {
+            setPasswordError("");
+            const result = await verifyPasswordAsync({ formId: form.id, password: passwordInput });
+            if (result.valid) {
+                setPasswordUnlocked(true);
+            } else {
+                setPasswordError("Incorrect password");
+            }
+        };
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+                <div className="w-full max-w-sm space-y-4 text-center">
+                    <Lock className="mx-auto size-10 text-muted-foreground" />
+                    <h1 className="text-2xl font-semibold">This form is password protected</h1>
+                    <p className="text-sm text-muted-foreground">Enter the password to access this form.</p>
+                    <Input
+                        type="password"
+                        placeholder="Enter password"
+                        value={passwordInput}
+                        onChange={(e) => setPasswordInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") void handlePasswordSubmit(); }}
+                    />
+                    {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
+                    <Button onClick={handlePasswordSubmit} disabled={verifyingPassword || !passwordInput.trim()} className="w-full">
+                        {verifyingPassword ? "Verifying..." : "Unlock Form"}
+                    </Button>
+                </div>
+            </main>
+        );
+    }
 
     if (isSuccess) {
         return (
