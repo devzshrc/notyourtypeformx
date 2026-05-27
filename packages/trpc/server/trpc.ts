@@ -14,12 +14,16 @@ export const publicProcedure = tRPCContext.procedure;
 export const authenticatedProcedure = tRPCContext.procedure.use(async (options) => {
     const { ctx } = options;
     const userToken = ctx.getCookie("token");
-    if (!userToken) throw new Error("User is not logged in");
-    const { id } = await userService.verifyAndDecodeUserToken(userToken);
-    return options.next({
-        ctx: {
-            ...ctx,
-            user: { id },
-        },
-    });
+    if (!userToken) throw new TRPCError({ code: "UNAUTHORIZED", message: "User is not logged in" });
+    try {
+        const { id } = await userService.verifyAndDecodeUserToken(userToken);
+        return options.next({
+            ctx: {
+                ...ctx,
+                user: { id },
+            },
+        });
+    } catch {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid or expired token" });
+    }
 });

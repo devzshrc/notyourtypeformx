@@ -44,8 +44,8 @@ export const authRouter = router({
             });
             ctx.setCookie("token", token, {
                 httpOnly: true,
-                secure: false,
-                sameSite: "strict",
+                secure: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod",
+                sameSite: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod" ? "none" : "strict",
                 maxAge: 30 * 24 * 60 * 60 * 1000,
             });
             return {
@@ -72,8 +72,8 @@ export const authRouter = router({
             });
             ctx.setCookie("token", token, {
                 httpOnly: true,
-                secure: false,
-                sameSite: "strict",
+                secure: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod",
+                sameSite: process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod" ? "none" : "strict",
                 maxAge: 30 * 24 * 60 * 60 * 1000,
             });
             return {
