@@ -66,7 +66,9 @@ export function useUser() {
         isFetching,
         isLoading,
         status,
-    } = trpc.auth.getLoggedInUserInfo.useQuery();
+    } = trpc.auth.getLoggedInUserInfo.useQuery(undefined, {
+        retry: false,
+    });
     return {
         data: user,
         error,
