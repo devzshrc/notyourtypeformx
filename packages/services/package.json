@@ -15,6 +15,7 @@
     "@repo/logger": "workspace:*",
     "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.5.0",
+    "groq-sdk": "^1.2.0",
     "jsonwebtoken": "^9.0.3",
     "zod": "^4.3.5"
   }

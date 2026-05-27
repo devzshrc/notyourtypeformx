@@ -135,8 +135,8 @@ export function useRecordEvent() {
     return { recordEvent: mutation.mutate };
 }
 
-export function useGetAnalytics(formId: string) {
-    const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId });
+export function useGetAnalytics(formId: string, options?: { refetchInterval?: number }) {
+    const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId }, { enabled: !!formId, ...options });
     return { analytics, isLoading };
 }
 
@@ -166,4 +166,20 @@ export function useClonePublicForm() {
         onSuccess: async () => { await utils.form.listForms.invalidate(); },
     });
     return { clonePublicFormAsync: mutation.mutateAsync, isPending: mutation.isPending };
+}
+
+export function useGenerateForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.generateForm.useMutation({
+        onSuccess: async () => { await utils.form.listForms.invalidate(); },
+    });
+    return { generateFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useImproveField(formId: string) {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.improveField.useMutation({
+        onSuccess: async () => { await utils.formField.listFields.invalidate({ formId }); },
+    });
+    return { improveFieldAsync: mutation.mutateAsync, isPending: mutation.isPending, improvingFieldId: mutation.variables?.fieldId ?? null };
 }

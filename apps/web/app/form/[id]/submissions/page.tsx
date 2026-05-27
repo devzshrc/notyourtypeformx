@@ -3,11 +3,20 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, ChevronLeft, ChevronRight } from "~/components/icons";
+import * as XLSX from "xlsx";
 import { useListSubmissions, useGetForm, useListFields, useGetAnalytics, useSubmissionTimeSeries } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
+import { motion, FadeIn, StaggerList, StaggerItem, type Variants } from "~/components/motion";
+import type { CSSProperties } from "react";
+
+const statCardVariants: Variants = {
+    rest:  { y: 0 },
+    hover: { y: -2, transition: { type: "spring", stiffness: 300, damping: 25 } },
+};
+const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import {
     Table,
@@ -43,6 +52,7 @@ export default function SubmissionsPage() {
     const [page, setPage] = useState(0);
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
+    const [search, setSearch] = useState("");
 
     const { submissions, total, isLoading, error } = useListSubmissions(formId, {
         limit: PAGE_SIZE,
@@ -53,6 +63,16 @@ export default function SubmissionsPage() {
 
     const cols = fields ?? [];
     const totalPages = Math.ceil(total / PAGE_SIZE);
+
+    const filteredSubmissions = search.trim()
+        ? (submissions ?? []).filter((sub) => {
+              const haystack = Object.values((sub.data ?? {}) as Record<string, unknown>)
+                  .map((v) => (Array.isArray(v) ? v.join(" ") : String(v ?? "")))
+                  .join(" ")
+                  .toLowerCase();
+              return haystack.includes(search.toLowerCase());
+          })
+        : (submissions ?? []);
     const hasScore = (submissions ?? []).some((s) => (s.data as Record<string, unknown>)?.__score != null);
 
     const SUMMARY_TYPES = ["MULTIPLE_CHOICE", "CHECKBOXES", "DROPDOWN", "YES_NO", "RATING"];
@@ -87,6 +107,19 @@ export default function SubmissionsPage() {
         URL.revokeObjectURL(url);
     };
 
+    const exportXlsx = () => {
+        if (!submissions) return;
+        const header = [...cols.map((c) => c.label), "Submitted At"];
+        const rows = submissions.map((sub) => {
+            const data = (sub.data ?? {}) as Record<string, unknown>;
+            return [...cols.map((c) => formatValue(data[c.labelKey])), sub.createdAt ? new Date(sub.createdAt).toLocaleString() : ""];
+        });
+        const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Responses");
+        XLSX.writeFile(wb, `${form?.title ?? "form"}-responses.xlsx`);
+    };
+
     return (
         <main className="min-h-screen bg-background px-6 py-6 text-foreground">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -96,24 +129,36 @@ export default function SubmissionsPage() {
                         <p className="text-sm text-muted-foreground">Submissions{total ? ` · ${total}` : ""}</p>
                         <h1 className="text-2xl font-semibold tracking-tight">{form?.title ?? "Loading..."}</h1>
                     </div>
-                    <Button variant="outline" onClick={exportCsv} disabled={!submissions || submissions.length === 0}><Download className="mr-1 size-4" /> Export CSV</Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={exportCsv} disabled={!submissions || submissions.length === 0}><Download className="mr-1 size-4" /> CSV</Button>
+                        <Button variant="outline" onClick={exportXlsx} disabled={!submissions || submissions.length === 0}><FileSpreadsheet className="mr-1 size-4" /> Excel</Button>
+                    </div>
                 </div>
 
                 {/* Analytics cards */}
                 {analytics && (
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <StaggerList className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                         {[
-                            { label: "Views", value: analytics.views },
-                            { label: "Starts", value: analytics.starts },
-                            { label: "Responses", value: analytics.submissions },
+                            { label: "Views",      value: analytics.views },
+                            { label: "Starts",     value: analytics.starts },
+                            { label: "Responses",  value: analytics.submissions },
                             { label: "Completion", value: `${analytics.completionRate}%` },
                         ].map((stat) => (
-                            <div key={stat.label} className="rounded-lg border border-border bg-card p-4">
-                                <p className="text-xs text-muted-foreground">{stat.label}</p>
-                                <p className="text-2xl font-semibold">{stat.value}</p>
-                            </div>
+                            <StaggerItem key={stat.label}>
+                                <motion.div
+                                    initial="rest"
+                                    whileHover="hover"
+                                    animate="rest"
+                                    variants={statCardVariants}
+                                    style={WC_TRANSFORM}
+                                    className="rounded-lg border border-border bg-card p-4 cursor-default"
+                                >
+                                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                                    <p className="text-2xl font-semibold">{stat.value}</p>
+                                </motion.div>
+                            </StaggerItem>
                         ))}
-                    </div>
+                    </StaggerList>
                 )}
 
                 {/* Time-series chart */}
@@ -134,6 +179,12 @@ export default function SubmissionsPage() {
 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-3">
+                    <Input
+                        placeholder="Search responses..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-56"
+                    />
                     <div className="flex items-center gap-2">
                         <label htmlFor="filter-start" className="text-xs text-muted-foreground">From</label>
                         <Input id="filter-start" type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(0); }} className="w-40" />
@@ -142,8 +193,8 @@ export default function SubmissionsPage() {
                         <label htmlFor="filter-end" className="text-xs text-muted-foreground">To</label>
                         <Input id="filter-end" type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(0); }} className="w-40" />
                     </div>
-                    {(startDate || endDate) && (
-                        <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setPage(0); }}>Clear</Button>
+                    {(startDate || endDate || search) && (
+                        <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); setPage(0); }}>Clear all</Button>
                     )}
                 </div>
 
@@ -176,6 +227,11 @@ export default function SubmissionsPage() {
                     <p className="text-sm text-destructive">{error.message}</p>
                 ) : submissions && submissions.length > 0 ? (
                     <>
+                        {search && (
+                            <p className="text-sm text-muted-foreground">
+                                {filteredSubmissions.length} of {submissions.length} results match &ldquo;{search}&rdquo;
+                            </p>
+                        )}
                         <div className="overflow-x-auto rounded-lg border border-border">
                             <Table>
                                 <TableHeader>
@@ -186,7 +242,7 @@ export default function SubmissionsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {submissions.map((sub) => {
+                                    {filteredSubmissions.map((sub) => {
                                         const data = (sub.data ?? {}) as Record<string, unknown>;
                                         return (
                                             <TableRow key={sub.id}>

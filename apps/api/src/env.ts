@@ -4,7 +4,8 @@ const envSchema = z.object({
   PORT: z.string().optional(),
   NODE_ENV: z.enum(["development", "prod"]).default("development"),
   BASE_URL: z.string().default("http://localhost:8000"),
-  WEB_URL: z.string().default("http://localhost:3000")
+  WEB_URL: z.string().default("http://localhost:3000"),
+  GROQ_API_KEY: z.string().optional(),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {

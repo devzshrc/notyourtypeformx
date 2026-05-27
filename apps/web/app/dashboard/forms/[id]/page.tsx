@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
     ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Pencil, Copy,
     QrCode, Download, Lock, Clock, Hash, Eye, Globe, EyeOff,
-} from "lucide-react";
+    ClipboardList, ExternalLink, Palette, Sparkles,
+} from "~/components/icons";
 import QRCode from "qrcode";
 import {
     useGetForm, useUpdateForm, useListFields,
     useAddField, useUpdateField, useDeleteField, useReorderFields,
+    useGetAnalytics, useImproveField,
 } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -28,6 +30,24 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
+import { FORM_THEME_OPTIONS } from "~/lib/form-themes";
+import { cn } from "~/lib/utils";
+import { motion, AnimatePresence, useReducedMotion, type Variants } from "~/components/motion";
+import type { CSSProperties } from "react";
+
+// ─── Module-level variants ────────────────────────────────────────────────────
+const fieldRowVariants: Variants = {
+    hidden: { opacity: 0, x: -8, height: 0 },
+    visible: { opacity: 1, x: 0, height: "auto", transition: { type: "spring", stiffness: 300, damping: 30 } },
+    exit:   { opacity: 0, x: 8, height: 0, transition: { duration: 0.2 } },
+};
+
+const fieldRowHoverVariants: Variants = {
+    rest:  { x: 0 },
+    hover: { x: 2, transition: { type: "spring", stiffness: 400, damping: 30 } },
+};
+
+const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
 
 const FIELD_TYPES = [
     "TEXT", "LONG_TEXT", "EMAIL", "NUMBER", "PHONE", "WEBSITE", "DATE",
@@ -47,6 +67,8 @@ export default function FormEditorPage() {
     const { updateFieldAsync, isPending: updatingField } = useUpdateField();
     const { deleteFieldAsync } = useDeleteField();
     const { reorderFieldsAsync } = useReorderFields();
+    const { analytics } = useGetAnalytics(formId, { refetchInterval: 5000 });
+    const { improveFieldAsync, isPending: improvingField, improvingFieldId } = useImproveField(formId);
 
     // Form meta
     const [editTitle, setEditTitle] = useState("");
@@ -64,10 +86,21 @@ export default function FormEditorPage() {
     const [maxResponses, setMaxResponses] = useState("");
     const [formPassword, setFormPassword] = useState("");
     const [hiddenFields, setHiddenFields] = useState<string[]>([]);
+    const [redirectUrl, setRedirectUrl] = useState("");
+    const [selectedTheme, setSelectedTheme] = useState("bold-tech");
 
-    // QR
-    const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+    // QR — use callback ref so generation fires when canvas actually mounts in DOM (Share tab lazy-renders)
+    const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const [qrGenerated, setQrGenerated] = useState(false);
+    const qrCallbackRef = useCallback((canvas: HTMLCanvasElement | null) => {
+        qrCanvasRef.current = canvas;
+        if (!canvas || !form?.status) return;
+        if (form.status === "PUBLISHED") {
+            const url = `${window.location.origin}/form/${form.slug ?? formId}`;
+            QRCode.toCanvas(canvas, url, { width: 160, margin: 2 }, () => setQrGenerated(true));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form?.status, form?.slug, formId]);
 
     // Field dialog
     const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
@@ -80,6 +113,15 @@ export default function FormEditorPage() {
     const [fLogic, setFLogic] = useState<Record<string, string>>({});
     const [fScores, setFScores] = useState<Record<string, number>>({});
 
+    // Inline label edit
+    const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+    const [editingLabelValue, setEditingLabelValue] = useState("");
+
+    // Bulk import dialog
+    const [bulkImportOpen, setBulkImportOpen] = useState(false);
+    const [bulkText, setBulkText] = useState("");
+    const [bulkProgress, setBulkProgress] = useState<string | null>(null);
+
     useEffect(() => {
         if (!form) return;
         setWelcomeTitle(form.welcomeTitle ?? "");
@@ -90,14 +132,10 @@ export default function FormEditorPage() {
         setMaxResponses(form.maxResponses ? String(form.maxResponses) : "");
         setFormPassword(form.password ?? "");
         setHiddenFields(form.hiddenFields ?? []);
+        setRedirectUrl(form.redirectUrl ?? "");
+        setSelectedTheme(form.theme ?? "bold-tech");
     }, [form]);
 
-    useEffect(() => {
-        if (form?.status === "PUBLISHED" && qrCanvasRef.current) {
-            const url = `${window.location.origin}/form/${form.slug ?? formId}`;
-            QRCode.toCanvas(qrCanvasRef.current, url, { width: 160, margin: 2 }, () => setQrGenerated(true));
-        }
-    }, [form?.status, form?.slug, formId]);
 
     // Handlers
     const isPublished = form?.status === "PUBLISHED";
@@ -113,7 +151,18 @@ export default function FormEditorPage() {
         toast.success(isPublished ? "Form unpublished" : "Form published!");
     };
     const handleSaveScreens = async () => { await updateFormAsync({ formId, welcomeTitle: welcomeTitle.trim(), welcomeDescription: welcomeDescription.trim(), endingTitle: endingTitle.trim(), endingDescription: endingDescription.trim() }); toast.success("Screens saved"); };
-    const handleSaveSettings = async () => { await updateFormAsync({ formId, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, maxResponses: maxResponses ? parseInt(maxResponses) : null, password: formPassword.trim() || null, hiddenFields: hiddenFields.map((h) => h.trim()).filter(Boolean) }); toast.success("Settings saved"); };
+    const handleSaveSettings = async () => {
+        await updateFormAsync({
+            formId,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+            maxResponses: maxResponses ? parseInt(maxResponses) : null,
+            password: formPassword.trim() || null,
+            hiddenFields: hiddenFields.map((h) => h.trim()).filter(Boolean),
+            redirectUrl: redirectUrl.trim() || null,
+            theme: selectedTheme,
+        });
+        toast.success("Settings saved");
+    };
 
     const openAddDialog = () => { setEditingFieldId(null); setFLabel(""); setFType("TEXT"); setFPlaceholder(""); setFRequired(false); setFOptions([]); setFLogic({}); setFScores({}); setFieldDialogOpen(true); };
     const openEditDialog = (field: NonNullable<typeof fields>[number]) => { setEditingFieldId(field.id); setFLabel(field.label); setFType(field.type); setFPlaceholder(field.placeholder ?? ""); setFRequired(field.isRequired); setFOptions(field.options ?? []); const map: Record<string, string> = {}; (field.logic ?? []).forEach((r) => (map[r.equals] = r.goTo)); setFLogic(map); setFScores(field.scores ?? {}); setFieldDialogOpen(true); };
@@ -132,6 +181,38 @@ export default function FormEditorPage() {
     };
 
     const moveField = async (idx: number, dir: -1 | 1) => { if (!fields) return; const target = idx + dir; if (target < 0 || target >= fields.length) return; const ids = fields.map((f) => f.id); [ids[idx], ids[target]] = [ids[target]!, ids[idx]!]; await reorderFieldsAsync({ formId, fieldIds: ids }); };
+
+    const copyField = async (field: NonNullable<typeof fields>[number]) => {
+        const map: Record<string, string> = {};
+        (field.logic ?? []).forEach((r) => (map[r.equals] = r.goTo));
+        await addFieldAsync({
+            formId,
+            label: `${field.label} (copy)`.slice(0, 100),
+            type: field.type,
+            placeholder: field.placeholder ?? undefined,
+            isRequired: field.isRequired,
+            index: fields?.length ?? 0,
+            options: field.options ?? [],
+            logic: field.logic ?? [],
+            scores: field.scores ?? {},
+        });
+        toast.success("Field duplicated");
+    };
+
+    // Bulk import handler
+    const handleBulkImport = async () => {
+        const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (!lines.length) return;
+        const baseIndex = fields?.length ?? 0;
+        for (let i = 0; i < lines.length; i++) {
+            setBulkProgress(`Creating ${i + 1}/${lines.length} fields...`);
+            await addFieldAsync({ formId, label: lines[i]!, type: "TEXT", isRequired: false, index: baseIndex + i });
+        }
+        setBulkProgress(null);
+        setBulkText("");
+        setBulkImportOpen(false);
+        toast.success(`${lines.length} fields added`);
+    };
 
     if (formLoading) return <div className="px-6 py-8"><div className="mx-auto max-w-4xl space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-64 w-full" /></div></div>;
 
@@ -179,36 +260,107 @@ export default function FormEditorPage() {
 
                     {/* BUILD TAB */}
                     <TabsContent value="build" className="mt-6 space-y-6">
-                        {/* Fields */}
+                        <motion.div
+                            key="build"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                            className="space-y-6"
+                        >
+                        {/* Fields header with bulk import */}
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-base font-medium">Questions</h2>
                                 <p className="text-sm text-muted-foreground">{fields?.length ?? 0} field{(fields?.length ?? 0) !== 1 ? "s" : ""}</p>
                             </div>
-                            <Button onClick={openAddDialog}><Plus className="mr-1 size-4" /> Add Field</Button>
+                            <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(true)}>
+                                    <ClipboardList className="mr-1 size-4" /> Import
+                                </Button>
+                                <Button onClick={openAddDialog}><Plus className="mr-1 size-4" /> Add Field</Button>
+                            </div>
                         </div>
 
                         {fieldsLoading ? (
                             <div className="space-y-3">{[1,2,3].map(i => <Skeleton key={i} className="h-16" />)}</div>
                         ) : fields && fields.length > 0 ? (
                             <div className="space-y-2">
+                                <AnimatePresence initial={false}>
                                 {fields.map((field, idx) => (
-                                    <div key={field.id} className="group flex items-center gap-3 rounded-lg border border-border bg-card p-4 transition-all hover:shadow-sm">
-                                        <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <motion.div
+                                        key={field.id}
+                                        initial="hidden"
+                                        animate="visible"
+                                        exit="exit"
+                                        variants={fieldRowVariants}
+                                        style={WC_OPACITY_TRANSFORM}
+                                        layout
+                                    >
+                                    <motion.div
+                                        initial="rest"
+                                        whileHover="hover"
+                                        animate="rest"
+                                        variants={fieldRowHoverVariants}
+                                        className="group flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:shadow-sm transition-shadow"
+                                    >
+                                        <div className="flex flex-col gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
                                             <button type="button" disabled={idx === 0} onClick={() => moveField(idx, -1)} aria-label="Move up" className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronUp className="size-4" /></button>
                                             <button type="button" disabled={idx === fields.length - 1} onClick={() => moveField(idx, 1)} aria-label="Move down" className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronDown className="size-4" /></button>
                                         </div>
                                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">{idx + 1}</span>
                                         <div className="flex-1 min-w-0">
-                                            <p className="truncate text-sm font-medium">{field.label}</p>
+                                            {/* Inline label edit */}
+                                            {editingLabelId === field.id ? (
+                                                <input
+                                                    autoFocus
+                                                    value={editingLabelValue}
+                                                    onChange={(e) => setEditingLabelValue(e.target.value)}
+                                                    onBlur={async () => {
+                                                        if (editingLabelValue.trim() && editingLabelValue !== field.label) {
+                                                            await updateFieldAsync({ fieldId: field.id, formId, label: editingLabelValue.trim() });
+                                                        }
+                                                        setEditingLabelId(null);
+                                                    }}
+                                                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                                                    className="w-full border-b border-primary bg-transparent text-sm font-medium focus:outline-none"
+                                                />
+                                            ) : (
+                                                <p
+                                                    className="truncate text-sm font-medium cursor-text hover:text-primary transition-colors"
+                                                    title="Click to edit label"
+                                                    onClick={() => { setEditingLabelId(field.id); setEditingLabelValue(field.label); }}
+                                                >
+                                                    {field.label}
+                                                </p>
+                                            )}
                                             <p className="text-xs text-muted-foreground">{field.type.replace(/_/g, " ").toLowerCase()}{field.isRequired && " · required"}</p>
                                         </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                                            <Button
+                                                variant="ghost" size="icon" className="size-8 text-yellow-500 hover:text-yellow-600"
+                                                title="Improve with AI ✨"
+                                                disabled={improvingField && improvingFieldId === field.id}
+                                                onClick={async () => {
+                                                    try {
+                                                        await improveFieldAsync({ fieldId: field.id });
+                                                        toast.success("Label improved ✨");
+                                                    } catch {
+                                                        toast.error("AI improve failed");
+                                                    }
+                                                }}
+                                            >
+                                                {improvingField && improvingFieldId === field.id
+                                                    ? <span className="size-3.5 animate-spin rounded-full border border-current border-t-transparent" />
+                                                    : <Sparkles className="size-3.5" />}
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="size-8" title="Duplicate field" onClick={() => copyField(field)}><Copy className="size-3.5" /></Button>
                                             <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(field)}><Pencil className="size-3.5" /></Button>
                                             <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => deleteFieldAsync({ fieldId: field.id, formId })}><Trash2 className="size-3.5" /></Button>
                                         </div>
-                                    </div>
+                                    </motion.div>
+                                    </motion.div>
                                 ))}
+                                </AnimatePresence>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 text-center">
@@ -248,10 +400,77 @@ export default function FormEditorPage() {
                             </div>
                             <Button className="mt-4" size="sm" onClick={handleSaveScreens} disabled={savingForm}>{savingForm ? "Saving..." : "Save Screens"}</Button>
                         </div>
+                    </motion.div>
                     </TabsContent>
 
                     {/* SETTINGS TAB */}
                     <TabsContent value="settings" className="mt-6 space-y-8">
+                        <motion.div
+                            key="settings"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                            className="space-y-8"
+                        >
+
+                        {/* Theme Picker */}
+                        <div>
+                            <h2 className="text-base font-medium flex items-center gap-2"><Palette className="size-4" /> Form Theme</h2>
+                            <p className="text-sm text-muted-foreground mb-4">Choose the visual style for your public form</p>
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {FORM_THEME_OPTIONS.map((theme) => (
+                                    <button
+                                        key={theme.value}
+                                        type="button"
+                                        onClick={async () => {
+                                            setSelectedTheme(theme.value);
+                                            await updateFormAsync({ formId, theme: theme.value });
+                                            toast.success(`Theme set to ${theme.label}`);
+                                        }}
+                                        className={cn(
+                                            "relative flex flex-col items-start gap-2 rounded-lg border-2 p-3 text-left transition-all hover:shadow-md",
+                                            selectedTheme === theme.value
+                                                ? "border-primary bg-primary/5"
+                                                : "border-border hover:border-primary/50"
+                                        )}
+                                    >
+                                        <div
+                                            className="h-8 w-full rounded-md"
+                                            style={{ background: theme.primaryColor }}
+                                        />
+                                        <div>
+                                            <p className="text-sm font-medium leading-none">{theme.label}</p>
+                                            <p className="text-xs text-muted-foreground mt-0.5">{theme.description}</p>
+                                        </div>
+                                        {selectedTheme === theme.value && (
+                                            <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Redirect URL */}
+                        <div>
+                            <h2 className="text-base font-medium flex items-center gap-2"><ExternalLink className="size-4" /> Custom Redirect</h2>
+                            <p className="text-sm text-muted-foreground mb-4">After submission, redirect respondents to a custom URL instead of showing the thank-you screen</p>
+                            <div className="max-w-md space-y-2">
+                                <Label htmlFor="redirect-url">Redirect URL</Label>
+                                <Input
+                                    id="redirect-url"
+                                    type="url"
+                                    value={redirectUrl}
+                                    onChange={(e) => setRedirectUrl(e.target.value)}
+                                    placeholder="https://your-site.com/thank-you"
+                                />
+                                <p className="text-xs text-muted-foreground">Leave empty to show the ending screen</p>
+                            </div>
+                        </div>
+
+                        <Separator />
+
                         <div>
                             <h2 className="text-base font-medium">Access Control</h2>
                             <p className="text-sm text-muted-foreground mb-4">Control who can access and submit this form</p>
@@ -298,12 +517,36 @@ export default function FormEditorPage() {
                         </div>
 
                         <Button onClick={handleSaveSettings} disabled={savingForm}>{savingForm ? "Saving..." : "Save All Settings"}</Button>
+                    </motion.div>
                     </TabsContent>
 
                     {/* SHARE TAB */}
                     <TabsContent value="share" className="mt-6 space-y-6">
+                        <motion.div
+                            key="share"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                            className="space-y-6"
+                        >
                         {isPublished ? (
                             <>
+                                {/* Live response counter */}
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+                                    <span className="relative flex size-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                                        <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                                    </span>
+                                    <div>
+                                        <p className="text-sm font-semibold">{analytics?.submissions ?? 0} response{(analytics?.submissions ?? 0) !== 1 ? "s" : ""}</p>
+                                        <p className="text-xs text-muted-foreground">Live · updates every 5s</p>
+                                    </div>
+                                    <div className="ml-auto flex gap-4 text-xs text-muted-foreground">
+                                        <span>{analytics?.views ?? 0} views</span>
+                                        <span>{analytics?.completionRate ?? 0}% completion</span>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-3">
                                     <h2 className="text-base font-medium">Form Link</h2>
                                     <div className="flex gap-2">
@@ -327,7 +570,7 @@ export default function FormEditorPage() {
                                 <div className="space-y-3">
                                     <h2 className="text-base font-medium flex items-center gap-2"><QrCode className="size-5" /> QR Code</h2>
                                     <div className="flex items-start gap-6">
-                                        <canvas ref={qrCanvasRef} className="rounded-lg border border-border" />
+                                        <canvas ref={qrCallbackRef} className="rounded-lg border border-border" />
                                         <div className="space-y-2">
                                             <p className="text-sm text-muted-foreground">Scan to open the form on any device</p>
                                             <Button variant="outline" size="sm" onClick={downloadQr} disabled={!qrGenerated}><Download className="mr-1 size-4" /> Download PNG</Button>
@@ -345,6 +588,7 @@ export default function FormEditorPage() {
                                 <Button onClick={handlePublishToggle} disabled={savingForm}>Publish Now</Button>
                             </div>
                         )}
+                    </motion.div>
                     </TabsContent>
                 </Tabs>
             </div>
@@ -413,6 +657,42 @@ export default function FormEditorPage() {
                             <Button type="submit" disabled={addingField || updatingField || !fLabel.trim()}>{addingField || updatingField ? "Saving..." : editingFieldId ? "Update" : "Add Field"}</Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Import Dialog */}
+            <Dialog open={bulkImportOpen} onOpenChange={(open) => { if (!bulkProgress) setBulkImportOpen(open); }}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Import Questions</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="bulk-text">One question per line</Label>
+                            <Textarea
+                                id="bulk-text"
+                                value={bulkText}
+                                onChange={(e) => setBulkText(e.target.value)}
+                                placeholder={"What is your name?\nHow did you hear about us?\nWould you recommend us?"}
+                                rows={8}
+                                disabled={!!bulkProgress}
+                            />
+                            <p className="text-xs text-muted-foreground">Each line becomes a TEXT field. You can change types after importing.</p>
+                        </div>
+                        {bulkProgress && (
+                            <p className="text-sm text-muted-foreground animate-pulse">{bulkProgress}</p>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setBulkImportOpen(false)} disabled={!!bulkProgress}>Cancel</Button>
+                        <Button
+                            type="button"
+                            disabled={!bulkText.trim() || !!bulkProgress}
+                            onClick={handleBulkImport}
+                        >
+                            {bulkProgress ? "Importing..." : `Import ${bulkText.split("\n").filter((l) => l.trim()).length || 0} Fields`}
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

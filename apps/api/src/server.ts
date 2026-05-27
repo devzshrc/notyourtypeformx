@@ -14,7 +14,7 @@ import cookieParser from "cookie-parser";
 
 export const app = express();
 const openApiDocument = generateOpenApiDocument(serverRouter, {
-    title: "ChaiForms API",
+    title: "Schema API",
     version: "1.0.0",
     baseUrl: env.BASE_URL.concat("/api"),
 });
@@ -48,11 +48,11 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.get("/", (req, res) => {
-    return res.json({ message: "ChaiForms API is running" });
+    return res.json({ message: "Schema API is running" });
 });
 
 app.get("/health", (req, res) => {
-    return res.json({ message: "ChaiForms server is healthy", healthy: true });
+    return res.json({ message: "Schema server is healthy", healthy: true });
 });
 
 app.get("/openapi.json", (req, res) => {
@@ -61,11 +61,21 @@ app.get("/openapi.json", (req, res) => {
 
 app.use("/docs", apiReference({ url: "/openapi.json" }));
 
+// AI generation: strict limiter (5/min per IP to prevent abuse)
+const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 5,
+    message: { error: "Too many AI requests, please try again later." },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
 // Apply rate limiting to public submission endpoints
 app.use("/api/submission/submitForm", submitLimiter);
 app.use("/api/submission/recordEvent", publicApiLimiter);
 app.use("/api/submission/verifyFormPassword", publicApiLimiter);
 app.use("/api/submission/getPublicForm", publicApiLimiter);
+app.use("/api/form/generateForm", aiLimiter);
 
 app.use(
     "/api",

@@ -52,6 +52,8 @@ export const getPublicFormOutputModel = z.object({
     welcomeDescription: z.string().nullable().optional(),
     endingTitle: z.string().nullable().optional(),
     endingDescription: z.string().nullable().optional(),
+    theme: z.string().nullable().optional(),
+    redirectUrl: z.string().nullable().optional(),
     fields: z.array(
         z.object({
             id: z.string(),

@@ -7,6 +7,8 @@ import {
     deleteFormInputModel, deleteFormOutputModel, cloneFormInputModel, cloneFormOutputModel,
     archiveFormInputModel, archiveFormOutputModel, listPublicFormsInputModel, listPublicFormsOutputModel,
     clonePublicFormInputModel, clonePublicFormOutputModel,
+    generateFormInputModel, generateFormOutputModel,
+    improveFieldInputModel, improveFieldOutputModel,
 } from "./model";
 
 const getPath = generatePath("/form");
@@ -57,4 +59,14 @@ export const formRouter = router({
         .meta({ openapi: { method: "POST", path: getPath("/clonePublicForm"), tags: TAGS, protect: true } })
         .input(clonePublicFormInputModel).output(clonePublicFormOutputModel)
         .mutation(async ({ input, ctx }) => formService.clonePublicForm({ formId: input.formId, userId: ctx.user.id })),
+
+    generateForm: authenticatedProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/generateForm"), tags: TAGS, protect: true } })
+        .input(generateFormInputModel).output(generateFormOutputModel)
+        .mutation(async ({ input, ctx }) => formService.generateFormWithAI(ctx.user.id, input.prompt)),
+
+    improveField: authenticatedProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/improveField"), tags: TAGS, protect: true } })
+        .input(improveFieldInputModel).output(improveFieldOutputModel)
+        .mutation(async ({ input, ctx }) => formService.improveFieldLabel(input.fieldId, ctx.user.id)),
 });

@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, type KeyboardEvent } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Star, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Star, Lock } from "~/components/icons";
+import { AnimatePresence, motion } from "~/components/motion";
+import { useSwipeable } from "react-swipeable";
+import { useTheme } from "next-themes";
+import confetti from "canvas-confetti";
 import { useGetPublicForm, useSubmitForm, useRecordEvent, useVerifyFormPassword } from "~/hooks/api/form";
+import { formThemesLight, formThemesDark, type FormTheme } from "~/lib/form-themes";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -77,6 +82,12 @@ function validateField(field: Field, value: AnswerValue | undefined): string | n
     return null;
 }
 
+const slideVariants = {
+    enter: (dir: "forward" | "backward") => ({ x: dir === "forward" ? 60 : -60, opacity: 0 }),
+    center: { x: 0, opacity: 1, transition: { duration: 0.25, ease: "easeOut" } },
+    exit: (dir: "forward" | "backward") => ({ x: dir === "forward" ? -60 : 60, opacity: 0, transition: { duration: 0.18, ease: "easeIn" } }),
+};
+
 export default function PublicFormPage() {
     const params = useParams<{ id: string }>();
     const formId = params.id;
@@ -85,6 +96,7 @@ export default function PublicFormPage() {
     const { submitFormAsync, isPending, isSuccess, error: submitError } = useSubmitForm();
     const { recordEvent } = useRecordEvent();
     const { verifyPasswordAsync, isPending: verifyingPassword } = useVerifyFormPassword();
+    const { resolvedTheme } = useTheme();
     const viewedRef = useRef(false);
     const startedRef = useRef(false);
 
@@ -95,9 +107,14 @@ export default function PublicFormPage() {
     const [hasWelcome, setHasWelcome] = useState(false);
     const [started, setStarted] = useState(false);
     const [step, setStep] = useState(0);
+    const [direction, setDirection] = useState<"forward" | "backward">("forward");
     const [history, setHistory] = useState<number[]>([]);
     const [formData, setFormData] = useState<Record<string, AnswerValue>>({});
     const [fieldError, setFieldError] = useState<string | null>(null);
+    const [submitted, setSubmitted] = useState(false);
+    const [showResume, setShowResume] = useState(false);
+
+    const draftKey = `schema-draft-${formId}`;
 
     useEffect(() => {
         if (!form) return;
@@ -117,7 +134,47 @@ export default function PublicFormPage() {
             }
             if (Object.keys(seed).length > 0) setFormData((prev) => ({ ...seed, ...prev }));
         }
+        // Check for saved draft
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                const draft = JSON.parse(saved) as { step: number; history: number[]; formData: Record<string, AnswerValue>; started: boolean };
+                if (draft.step > 0 || Object.keys(draft.formData).length > 0) {
+                    setShowResume(true);
+                }
+            }
+        } catch { /* ignore */ }
     }, [form]);
+
+    // Auto-save draft to localStorage when progress changes
+    useEffect(() => {
+        if (!started || submitted) return;
+        try {
+            localStorage.setItem(draftKey, JSON.stringify({ step, history, formData, started }));
+        } catch { /* ignore */ }
+    }, [step, history, formData, started, submitted]);
+
+    // Mobile swipe handlers (must be called before any early returns to preserve hook order)
+    const swipeHandlers = useSwipeable({
+        onSwipedLeft: () => void goNextRef.current?.(),
+        onSwipedRight: () => goBackRef.current?.(),
+        preventScrollOnSwipe: true,
+        trackMouse: false,
+    });
+
+    // Global Enter key handler
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            // Skip for LONG_TEXT (Enter = newline there)
+            if (e.key !== "Enter" || e.shiftKey) return;
+            const tag = (e.target as HTMLElement).tagName;
+            if (tag === "TEXTAREA") return;
+            e.preventDefault();
+            void goNextRef.current?.();
+        };
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
+    }, []);
 
     if (isLoading) {
         return (
@@ -138,6 +195,12 @@ export default function PublicFormPage() {
     const fields = form.fields as Field[];
     const isDraft = form.status !== "PUBLISHED";
 
+    // Per-form theme CSS vars (computed early so all screens get themed)
+    const themeKey = (form.theme ?? "bold-tech") as FormTheme;
+    const themeVars = resolvedTheme === "dark"
+        ? (formThemesDark[themeKey] ?? {})
+        : (formThemesLight[themeKey] ?? {});
+
     // Password gate
     if (form.hasPassword && !passwordUnlocked) {
         const handlePasswordSubmit = async () => {
@@ -150,7 +213,7 @@ export default function PublicFormPage() {
             }
         };
         return (
-            <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
                 <div className="w-full max-w-sm space-y-4 text-center">
                     <Lock className="mx-auto size-10 text-muted-foreground" />
                     <h1 className="text-2xl font-semibold">This form is password protected</h1>
@@ -171,41 +234,80 @@ export default function PublicFormPage() {
         );
     }
 
-    if (isSuccess) {
+    if (isSuccess || submitted) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-                <div className="max-w-lg text-center">
+            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="max-w-lg text-center"
+                >
                     <h1 className="text-3xl font-semibold tracking-tight">
                         {form.endingTitle || "Thank you!"}
                     </h1>
                     <p className="mt-3 text-muted-foreground">
                         {form.endingDescription || "Your response has been submitted."}
                     </p>
-                </div>
+                </motion.div>
             </main>
         );
     }
 
+    const resumeDraft = () => {
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) {
+                const draft = JSON.parse(saved) as { step: number; history: number[]; formData: Record<string, AnswerValue>; started: boolean };
+                setStep(draft.step);
+                setHistory(draft.history);
+                setFormData(draft.formData);
+                setStarted(true);
+                setShowResume(false);
+            }
+        } catch { /* ignore */ }
+    };
+
+    const discardDraft = () => {
+        try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+        setShowResume(false);
+    };
+
     if (hasWelcome && !started) {
         return (
-            <main className="relative flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <main style={themeVars as React.CSSProperties} className="relative flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
                 {isDraft && <DraftBanner />}
-                <div className="max-w-lg text-center">
+                <motion.div
+                    initial={{ opacity: 0, y: 24 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="max-w-lg text-center"
+                >
                     <h1 className="text-4xl font-semibold tracking-tight">{form.welcomeTitle}</h1>
                     {form.welcomeDescription && (
                         <p className="mt-4 text-lg text-muted-foreground">{form.welcomeDescription}</p>
                     )}
-                    <Button onClick={() => setStarted(true)} className="mt-8 px-8">
-                        Start <ArrowRight className="ml-2 size-4" />
-                    </Button>
-                </div>
+                    {showResume ? (
+                        <div className="mt-8 flex flex-col items-center gap-3">
+                            <p className="text-sm text-muted-foreground">You have a saved draft for this form.</p>
+                            <div className="flex gap-3">
+                                <Button onClick={resumeDraft} className="px-6">Continue where you left off</Button>
+                                <Button variant="outline" onClick={() => { discardDraft(); setStarted(true); }}>Start fresh</Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <Button onClick={() => setStarted(true)} className="mt-8 px-8">
+                            Start <ArrowRight className="ml-2 size-4" />
+                        </Button>
+                    )}
+                </motion.div>
             </main>
         );
     }
 
     if (fields.length === 0) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
+            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background text-foreground">
                 <p className="text-muted-foreground">This form has no questions yet.</p>
             </main>
         );
@@ -268,15 +370,30 @@ export default function PublicFormPage() {
             const hasScores = fields.some((f) => f.scores);
             const payload = hasScores ? { ...formData, __score: String(computeScore(formData)) } : formData;
             await submitFormAsync({ formId, data: payload });
+            // Clear saved draft
+            try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+            // Confetti on success
+            confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+            // Redirect if configured, otherwise show ending screen
+            if (form.redirectUrl) {
+                window.location.href = form.redirectUrl;
+                return;
+            }
+            setSubmitted(true);
             return;
         }
+        setDirection("forward");
         setHistory((h) => [...h, step]);
         setStep(next);
         setFieldError(null);
     };
 
+    // Store goNext in ref for global keyboard handler
+    goNextRef.current = goNext;
+
     const goBack = () => {
         setFieldError(null);
+        setDirection("backward");
         if (history.length === 0) {
             if (hasWelcome) setStarted(false);
             return;
@@ -287,15 +404,14 @@ export default function PublicFormPage() {
             return h.slice(0, -1);
         });
     };
-
-    const advanceOnEnter = (e: KeyboardEvent) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            void goNext();
-        }
-    };
+    goBackRef.current = goBack;
 
     const progress = ((step + 1) / fields.length) * 100;
+
+
+
+    // Show keyboard hint for simple text inputs
+    const showEnterHint = !["STATEMENT", "LONG_TEXT", "MULTIPLE_CHOICE", "CHECKBOXES", "YES_NO", "RATING", "DROPDOWN"].includes(field.type);
 
     const renderInput = () => {
         switch (field.type) {
@@ -313,11 +429,13 @@ export default function PublicFormPage() {
                 );
             case "YES_NO":
                 return (
-                    <div className="flex gap-3">
+                    <div className="flex gap-3" role="radiogroup" aria-label={field.label}>
                         {["yes", "no"].map((opt) => (
                             <button
                                 key={opt}
                                 type="button"
+                                role="radio"
+                                aria-checked={currentStr === opt}
                                 onClick={() => setValue(opt)}
                                 className={`flex-1 rounded-md border px-4 py-3 text-left capitalize transition ${
                                     currentStr === opt
@@ -332,11 +450,13 @@ export default function PublicFormPage() {
                 );
             case "MULTIPLE_CHOICE":
                 return (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2" role="radiogroup" aria-label={field.label}>
                         {field.options.map((opt) => (
                             <button
                                 key={opt}
                                 type="button"
+                                role="radio"
+                                aria-checked={currentStr === opt}
                                 onClick={() => setValue(opt)}
                                 className={`rounded-md border px-4 py-3 text-left transition ${
                                     currentStr === opt
@@ -351,11 +471,13 @@ export default function PublicFormPage() {
                 );
             case "CHECKBOXES":
                 return (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2" role="group" aria-label={field.label}>
                         {field.options.map((opt) => (
                             <button
                                 key={opt}
                                 type="button"
+                                role="checkbox"
+                                aria-checked={currentArr.includes(opt)}
                                 onClick={() => toggleCheckbox(opt)}
                                 className={`rounded-md border px-4 py-3 text-left transition ${
                                     currentArr.includes(opt)
@@ -385,9 +507,9 @@ export default function PublicFormPage() {
                 );
             case "RATING":
                 return (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" role="group" aria-label="Rating">
                         {Array.from({ length: RATING_MAX }, (_, i) => i + 1).map((n) => (
-                            <button key={n} type="button" onClick={() => setValue(String(n))}>
+                            <button key={n} type="button" onClick={() => setValue(String(n))} aria-label={`Rate ${n} out of ${RATING_MAX}`}>
                                 <Star
                                     className={`size-9 transition ${
                                         Number(currentStr) >= n
@@ -421,7 +543,6 @@ export default function PublicFormPage() {
                         placeholder={field.placeholder ?? ""}
                         value={currentStr}
                         onChange={(e) => setValue(e.target.value)}
-                        onKeyDown={advanceOnEnter}
                         className="rounded-none border-0 border-b bg-transparent px-0 text-xl focus-visible:ring-0"
                     />
                 );
@@ -429,53 +550,88 @@ export default function PublicFormPage() {
     };
 
     return (
-        <main className="relative flex min-h-screen flex-col bg-background text-foreground">
+        <main {...swipeHandlers} style={themeVars as React.CSSProperties} className="relative flex min-h-screen flex-col bg-background text-foreground">
             {isDraft && <DraftBanner />}
+            {showResume && !hasWelcome && (
+                <div className="flex items-center justify-between bg-primary/10 px-4 py-2 text-sm">
+                    <span className="text-foreground">You have a saved draft.</span>
+                    <div className="flex gap-2">
+                        <button type="button" onClick={resumeDraft} className="font-medium text-primary hover:underline">Resume</button>
+                        <span className="text-muted-foreground">·</span>
+                        <button type="button" onClick={discardDraft} className="text-muted-foreground hover:underline">Start fresh</button>
+                    </div>
+                </div>
+            )}
             <Progress value={progress} className="h-1 rounded-none" />
 
             <div className="flex flex-1 items-center justify-center px-6">
                 <div className="w-full max-w-xl">
-                    <p className="mb-2 text-sm text-muted-foreground">
-                        {step + 1} of {fields.length}
-                    </p>
-                    <label className="block text-2xl font-medium tracking-tight">
-                        {pipe(field.label, formData)}
-                        {field.isRequired && field.type !== "STATEMENT" && (
-                            <span className="ml-1 text-destructive">*</span>
-                        )}
-                    </label>
-                    {field.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            {pipe(field.description, formData)}
-                        </p>
-                    )}
+                    <AnimatePresence mode="wait" custom={direction}>
+                        <motion.div
+                            key={step}
+                            custom={direction}
+                            variants={slideVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                        >
+                            <p className="mb-2 text-sm text-muted-foreground">
+                                {step + 1} of {fields.length}
+                            </p>
+                            <label className="block text-2xl font-medium tracking-tight">
+                                {pipe(field.label, formData)}
+                                {field.isRequired && field.type !== "STATEMENT" && (
+                                    <span className="ml-1 text-destructive">*</span>
+                                )}
+                            </label>
+                            {field.description && (
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    {pipe(field.description, formData)}
+                                </p>
+                            )}
 
-                    <div className="mt-6">{renderInput()}</div>
+                            <div className="mt-6">{renderInput()}</div>
 
-                    {fieldError && <p className="mt-3 text-sm text-destructive">{fieldError}</p>}
-                    {submitError && <p className="mt-3 text-sm text-destructive">{submitError.message}</p>}
+                            {showEnterHint && (
+                                <p className="mt-3 hidden text-xs text-muted-foreground sm:block">
+                                    Press{" "}
+                                    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-xs">
+                                        Enter ↵
+                                    </kbd>{" "}
+                                    to continue
+                                </p>
+                            )}
 
-                    <div className="mt-8 flex items-center gap-3">
-                        <Button onClick={() => void goNext()} disabled={isPending || (willEnd && isDraft)} className="px-6">
-                            {willEnd ? (isPending ? "Submitting..." : "Submit") : field.type === "STATEMENT" ? "Continue" : "OK"}
-                            {!willEnd && <ArrowRight className="ml-2 size-4" />}
-                        </Button>
-                        {(history.length > 0 || hasWelcome) && (
-                            <Button variant="ghost" onClick={goBack}>
-                                <ArrowLeft className="mr-1 size-4" /> Back
-                            </Button>
-                        )}
-                    </div>
-                    {willEnd && isDraft && (
-                        <p className="mt-3 text-sm text-muted-foreground">
-                            Publish this form to accept responses.
-                        </p>
-                    )}
+                            {fieldError && <p className="mt-3 text-sm text-destructive">{fieldError}</p>}
+                            {submitError && <p className="mt-3 text-sm text-destructive">{submitError.message}</p>}
+
+                            <div className="mt-8 flex items-center gap-3">
+                                <Button onClick={() => void goNext()} disabled={isPending || (willEnd && isDraft)} className="px-6">
+                                    {willEnd ? (isPending ? "Submitting..." : "Submit") : field.type === "STATEMENT" ? "Continue" : "OK"}
+                                    {!willEnd && <ArrowRight className="ml-2 size-4" />}
+                                </Button>
+                                {(history.length > 0 || hasWelcome) && (
+                                    <Button variant="ghost" onClick={goBack}>
+                                        <ArrowLeft className="mr-1 size-4" /> Back
+                                    </Button>
+                                )}
+                            </div>
+                            {willEnd && isDraft && (
+                                <p className="mt-3 text-sm text-muted-foreground">
+                                    Publish this form to accept responses.
+                                </p>
+                            )}
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
             </div>
         </main>
     );
 }
+
+// Mutable ref for keyboard handler to access goNext without stale closure
+const goNextRef: { current: (() => Promise<void>) | null } = { current: null };
+const goBackRef: { current: (() => void) | null } = { current: null };
 
 function DraftBanner() {
     return (

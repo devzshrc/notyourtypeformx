@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle } from "~/components/icons";
 import { Button } from "~/components/ui/button";
 
 const PLANS = [
@@ -40,12 +40,12 @@ const PLANS = [
 export default function PricingPage() {
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <header className="border-b border-border">
-                <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-                    <Link href="/" className="text-lg font-bold">ChaiForms</Link>
+            <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+                <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
+                    <Link href="/" className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">Schema</Link>
                     <div className="flex items-center gap-3">
-                        <Link href="/explore" className="text-sm text-muted-foreground hover:text-foreground">Explore</Link>
-                        <Button asChild size="sm"><Link href="/signin">Sign In</Link></Button>
+                        <Button asChild variant="ghost" size="sm"><Link href="/signin">Sign in</Link></Button>
+                        <Button asChild size="sm"><Link href="/signup">Get started</Link></Button>
                     </div>
                 </nav>
             </header>

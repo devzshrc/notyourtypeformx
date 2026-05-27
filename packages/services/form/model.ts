@@ -35,6 +35,8 @@ export const updateFormInput = z.object({
     expiresAt: z.string().nullable().optional(),
     maxResponses: z.number().int().min(1).nullable().optional(),
     password: z.string().max(100).nullable().optional(),
+    theme: z.string().max(50).optional(),
+    redirectUrl: z.string().max(500).nullable().optional(),
 });
 export type UpdateFormInputType = z.infer<typeof updateFormInput>;
 

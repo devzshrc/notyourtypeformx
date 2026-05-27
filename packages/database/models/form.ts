@@ -20,6 +20,8 @@ export const formsTable = pgTable("forms", {
     expiresAt: timestamp("expires_at"),
     maxResponses: integer("max_responses"),
     password: varchar("password", { length: 100 }),
+    theme: varchar("theme", { length: 50 }).default("bold-tech").notNull(),
+    redirectUrl: varchar("redirect_url", { length: 500 }),
     isArchived: boolean("is_archived").default(false).notNull(),
     createdBy: uuid("created_by").references(() => usersTable.id),
 

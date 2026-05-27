@@ -20,6 +20,8 @@ export const getFormOutputModel = z.object({
     endingTitle: z.string().nullable().optional(), endingDescription: z.string().nullable().optional(),
     expiresAt: z.date().nullable().optional(), maxResponses: z.number().nullable().optional(),
     password: z.string().nullable().optional(), isArchived: z.boolean(),
+    theme: z.string().nullable().optional(),
+    redirectUrl: z.string().nullable().optional(),
     createdBy: z.string().nullable().optional(), createdAt: z.date().nullable(), updatedAt: z.date().nullable(),
 });
 
@@ -31,6 +33,8 @@ export const updateFormInputModel = z.object({
     isTemplate: z.boolean().optional(), hiddenFields: z.array(z.string().max(100)).optional(),
     expiresAt: z.string().nullable().optional(), maxResponses: z.number().int().min(1).nullable().optional(),
     password: z.string().max(100).nullable().optional(),
+    theme: z.string().max(50).optional(),
+    redirectUrl: z.string().max(500).nullable().optional(),
 });
 export const updateFormOutputModel = z.object({ id: z.string() });
 
@@ -52,3 +56,9 @@ export const listPublicFormsOutputModel = z.array(z.object({
 
 export const clonePublicFormInputModel = z.object({ formId: z.string().uuid() });
 export const clonePublicFormOutputModel = z.object({ id: z.string() });
+
+export const generateFormInputModel = z.object({ prompt: z.string().min(10).max(500) });
+export const generateFormOutputModel = z.object({ id: z.string().uuid() });
+
+export const improveFieldInputModel = z.object({ fieldId: z.string().uuid() });
+export const improveFieldOutputModel = z.object({ label: z.string() });
