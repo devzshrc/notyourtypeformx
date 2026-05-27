@@ -1,5 +1,8 @@
 import { trpc } from "~/trpc/client";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isValidUUID = (v: string) => UUID_RE.test(v);
+
 export function useCreateForm() {
     const utils = trpc.useUtils();
     const mutation = trpc.form.createForm.useMutation({
@@ -28,7 +31,7 @@ export function useListWorkspaceForms(workspaceId: string | null) {
 }
 
 export function useGetForm(formId: string) {
-    const { data: form, error, isLoading, status } = trpc.form.getForm.useQuery({ formId });
+    const { data: form, error, isLoading, status } = trpc.form.getForm.useQuery({ formId }, { enabled: isValidUUID(formId) });
     return { form, error, isLoading, status };
 }
 
@@ -75,7 +78,7 @@ export function useArchiveForm() {
 
 // Form Fields
 export function useListFields(formId: string) {
-    const { data: fields, error, isLoading } = trpc.formField.listFields.useQuery({ formId });
+    const { data: fields, error, isLoading } = trpc.formField.listFields.useQuery({ formId }, { enabled: isValidUUID(formId) });
     return { fields, error, isLoading };
 }
 
@@ -126,12 +129,12 @@ export function useSubmitForm() {
 }
 
 export function useListSubmissions(formId: string, opts?: { limit?: number; offset?: number; startDate?: string; endDate?: string }) {
-    const { data, error, isLoading } = trpc.submission.listSubmissions.useQuery({ formId, ...opts });
+    const { data, error, isLoading } = trpc.submission.listSubmissions.useQuery({ formId, ...opts }, { enabled: isValidUUID(formId) });
     return { submissions: data?.rows, total: data?.total ?? 0, error, isLoading };
 }
 
 export function useGetPublicForm(formId: string) {
-    const { data: form, error, isLoading } = trpc.submission.getPublicForm.useQuery({ formId });
+    const { data: form, error, isLoading } = trpc.submission.getPublicForm.useQuery({ formId }, { enabled: !!formId });
     return { form, error, isLoading };
 }
 
@@ -141,12 +144,12 @@ export function useRecordEvent() {
 }
 
 export function useGetAnalytics(formId: string, options?: { refetchInterval?: number }) {
-    const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId }, { enabled: !!formId, ...options });
+    const { data: analytics, isLoading } = trpc.submission.getAnalytics.useQuery({ formId }, { enabled: isValidUUID(formId), ...options });
     return { analytics, isLoading };
 }
 
 export function useSubmissionTimeSeries(formId: string, days?: number) {
-    const { data: timeSeries, isLoading } = trpc.submission.getSubmissionTimeSeries.useQuery({ formId, days });
+    const { data: timeSeries, isLoading } = trpc.submission.getSubmissionTimeSeries.useQuery({ formId, days }, { enabled: isValidUUID(formId) });
     return { timeSeries, isLoading };
 }
 
