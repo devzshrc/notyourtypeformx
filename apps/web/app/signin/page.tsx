@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSignin, useUser } from "~/hooks/api/auth";
@@ -30,6 +30,14 @@ const errorVariants: Variants = {
 const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
 
 export default function SigninPage() {
+    return (
+        <Suspense>
+            <SigninContent />
+        </Suspense>
+    );
+}
+
+function SigninContent() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const router = useRouter();

@@ -38,7 +38,7 @@ export const leaveWorkspaceInputModel = z.object({ workspaceId: z.string().uuid(
 export const leaveWorkspaceOutputModel = z.object({ success: z.boolean() });
 
 export const listPendingInvitationsInputModel = z.object({ workspaceId: z.string().uuid() });
-export const listPendingInvitationsOutputModel = z.array(z.object({ id: z.string(), email: z.string(), role: assignableRoleEnum, createdAt: z.date().nullable(), expiresAt: z.date() }));
+export const listPendingInvitationsOutputModel = z.array(z.object({ id: z.string(), email: z.string(), role: roleEnum, createdAt: z.date().nullable(), expiresAt: z.date() }));
 
 export const revokeInvitationInputModel = z.object({ invitationId: z.string().uuid(), workspaceId: z.string().uuid() });
 export const revokeInvitationOutputModel = z.object({ success: z.boolean() });

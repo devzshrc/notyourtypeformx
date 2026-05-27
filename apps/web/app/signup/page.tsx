@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSignup, useUser } from "~/hooks/api/auth";
@@ -54,6 +54,14 @@ const PERKS = [
 ];
 
 export default function SignupPage() {
+    return (
+        <Suspense>
+            <SignupContent />
+        </Suspense>
+    );
+}
+
+function SignupContent() {
     const [fullName, setFullName] = useState("");
     const [email, setEmail]       = useState("");
     const [password, setPassword] = useState("");
