@@ -2,6 +2,21 @@
   "name": "@repo/services",
   "version": "1.0.0",
   "private": true,
+  "exports": {
+    "./user": "./user/index.ts",
+    "./user/model": "./user/model.ts",
+    "./form": "./form/index.ts",
+    "./form/model": "./form/model.ts",
+    "./form-field": "./form-field/index.ts",
+    "./form-field/model": "./form-field/model.ts",
+    "./submission": "./submission/index.ts",
+    "./submission/model": "./submission/model.ts",
+    "./workspace": "./workspace/index.ts",
+    "./workspace/model": "./workspace/model.ts",
+    "./template": "./template/index.ts",
+    "./template/model": "./template/model.ts",
+    "./env": "./env.ts"
+  },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",

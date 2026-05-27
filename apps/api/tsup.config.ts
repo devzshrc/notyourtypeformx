@@ -21,6 +21,7 @@ export default defineConfig({
       path.resolve(__dirname, "../../packages/database/node_modules"),
       path.resolve(__dirname, "../../packages/services/node_modules"),
       path.resolve(__dirname, "../../packages/trpc/node_modules"),
+      path.resolve(__dirname, "../../packages/logger/node_modules"),
     ];
   },
 });
