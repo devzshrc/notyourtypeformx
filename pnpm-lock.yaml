@@ -24,6 +24,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@repo/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@repo/logger':
         specifier: workspace:*
         version: link:../../packages/logger
@@ -45,6 +48,9 @@ importers:
       cors:
         specifier: ^2.8.5
         version: 2.8.5
+      drizzle-orm:
+        specifier: ^0.45.1
+        version: 0.45.1(@types/pg@8.16.0)(pg@8.16.3)
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -54,6 +60,9 @@ importers:
       groq-sdk:
         specifier: ^1.2.0
         version: 1.2.0
+      pg:
+        specifier: ^8.16.3
+        version: 8.16.3
       trpc-to-openapi:
         specifier: ^3.1.0
         version: 3.1.0(@trpc/server@11.8.1(typescript@5.9.3))(zod-openapi@5.4.5(zod@4.3.5))(zod@4.3.5)

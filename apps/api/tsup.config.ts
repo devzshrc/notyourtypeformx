@@ -1,8 +1,9 @@
 import { defineConfig } from "tsup";
+import path from "path";
 
 export default defineConfig({
   entry: ["./src/index.ts"],
-  noExternal: [/@repo/],
+  noExternal: [/.*/],
   splitting: false,
   bundle: true,
   outDir: "./dist",
@@ -11,4 +12,15 @@ export default defineConfig({
   loader: { ".json": "copy" },
   minify: true,
   sourcemap: false,
+  external: ["pg-native"],
+  esbuildOptions(options) {
+    options.resolveExtensions = [".ts", ".js", ".json"];
+    options.nodePaths = [
+      path.resolve(__dirname, "node_modules"),
+      path.resolve(__dirname, "../../node_modules"),
+      path.resolve(__dirname, "../../packages/database/node_modules"),
+      path.resolve(__dirname, "../../packages/services/node_modules"),
+      path.resolve(__dirname, "../../packages/trpc/node_modules"),
+    ];
+  },
 });
