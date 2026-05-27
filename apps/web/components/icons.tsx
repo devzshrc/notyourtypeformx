@@ -53,4 +53,7 @@ export {
     Shield,
     User,
     Mail,
+    Building2,
+    GripVertical,
+    ArrowRightLeft,
 } from "lucide-react";

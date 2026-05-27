@@ -1,13 +1,14 @@
 import { z } from "zod";
 
-export const createFormInputModel = z.object({ title: z.string().max(55), description: z.string().max(300).optional() });
+export const createFormInputModel = z.object({ title: z.string().max(55), description: z.string().max(300).optional(), workspaceId: z.string().uuid().optional() });
 export const createFormOutputModel = z.object({ id: z.string() });
 
-export const listFormsInputModel = z.object({ includeArchived: z.boolean().optional() }).optional();
+export const listFormsInputModel = z.object({ includeArchived: z.boolean().optional(), workspaceId: z.string().uuid().optional() }).optional();
 export const listFormOutputModel = z.array(z.object({
     id: z.string(), title: z.string(), description: z.string().nullable().optional(),
     status: z.enum(["DRAFT", "PUBLISHED"]), visibility: z.enum(["PUBLIC", "UNLISTED"]),
     isTemplate: z.boolean(), isArchived: z.boolean(), createdAt: z.date().nullable(), updatedAt: z.date().nullable(),
+    workspaceId: z.string().nullable().optional(),
 }));
 
 export const getFormInputModel = z.object({ formId: z.string().uuid() });
@@ -62,3 +63,15 @@ export const generateFormOutputModel = z.object({ id: z.string().uuid() });
 
 export const improveFieldInputModel = z.object({ fieldId: z.string().uuid() });
 export const improveFieldOutputModel = z.object({ label: z.string() });
+
+export const updateSlugInputModel = z.object({ formId: z.string().uuid(), slug: z.string().min(3).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) });
+export const updateSlugOutputModel = z.object({ slug: z.string() });
+
+export const getFormBySlugInputModel = z.object({ slug: z.string().min(3).max(80) });
+export const getFormBySlugOutputModel = z.object({ id: z.string(), title: z.string(), description: z.string().nullable().optional(), theme: z.string().nullable().optional(), slug: z.string().nullable().optional(), fields: z.array(z.any()) }).passthrough();
+
+export const suggestFieldsInputModel = z.object({ formId: z.string().uuid() });
+export const suggestFieldsOutputModel = z.object({ suggestions: z.array(z.object({ label: z.string(), type: z.string(), isRequired: z.boolean(), reasoning: z.string() })) });
+
+export const moveFormInputModel = z.object({ formId: z.string().uuid(), workspaceId: z.string().uuid().nullable() });
+export const moveFormOutputModel = z.object({ id: z.string() });

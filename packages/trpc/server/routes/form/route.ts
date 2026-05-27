@@ -9,6 +9,10 @@ import {
     clonePublicFormInputModel, clonePublicFormOutputModel,
     generateFormInputModel, generateFormOutputModel,
     improveFieldInputModel, improveFieldOutputModel,
+    updateSlugInputModel, updateSlugOutputModel,
+    getFormBySlugInputModel, getFormBySlugOutputModel,
+    suggestFieldsInputModel, suggestFieldsOutputModel,
+    moveFormInputModel, moveFormOutputModel,
 } from "./model";
 
 const getPath = generatePath("/form");
@@ -23,7 +27,7 @@ export const formRouter = router({
     listForms: authenticatedProcedure
         .meta({ openapi: { method: "GET", path: getPath("/listForms"), tags: TAGS, protect: true } })
         .input(listFormsInputModel).output(listFormOutputModel)
-        .query(async ({ input, ctx }) => formService.listFormsByUserId({ userId: ctx.user.id, includeArchived: input?.includeArchived })),
+        .query(async ({ input, ctx }) => formService.listFormsByUserId({ userId: ctx.user.id, includeArchived: input?.includeArchived, workspaceId: input?.workspaceId })),
 
     getForm: authenticatedProcedure
         .meta({ openapi: { method: "GET", path: getPath("/getForm"), tags: TAGS, protect: true } })
@@ -69,4 +73,24 @@ export const formRouter = router({
         .meta({ openapi: { method: "POST", path: getPath("/improveField"), tags: TAGS, protect: true } })
         .input(improveFieldInputModel).output(improveFieldOutputModel)
         .mutation(async ({ input, ctx }) => formService.improveFieldLabel(input.fieldId, ctx.user.id)),
+
+    updateSlug: authenticatedProcedure
+        .meta({ openapi: { method: "PUT", path: getPath("/updateSlug"), tags: TAGS, protect: true } })
+        .input(updateSlugInputModel).output(updateSlugOutputModel)
+        .mutation(async ({ input, ctx }) => formService.updateSlug({ ...input, userId: ctx.user.id })),
+
+    getFormBySlug: publicProcedure
+        .meta({ openapi: { method: "GET", path: getPath("/getFormBySlug"), tags: TAGS } })
+        .input(getFormBySlugInputModel).output(getFormBySlugOutputModel)
+        .query(async ({ input }) => formService.getFormBySlug(input)),
+
+    suggestFields: authenticatedProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/suggestFields"), tags: TAGS, protect: true } })
+        .input(suggestFieldsInputModel).output(suggestFieldsOutputModel)
+        .mutation(async ({ input, ctx }) => formService.suggestNextField(input.formId, ctx.user.id)),
+
+    moveForm: authenticatedProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/moveForm"), tags: TAGS, protect: true } })
+        .input(moveFormInputModel).output(moveFormOutputModel)
+        .mutation(async ({ input, ctx }) => formService.moveForm({ formId: input.formId, userId: ctx.user.id, workspaceId: input.workspaceId })),
 });

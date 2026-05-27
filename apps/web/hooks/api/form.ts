@@ -17,9 +17,14 @@ export function useCreateForm() {
     };
 }
 
-export function useListForms(includeArchived?: boolean) {
-    const { data: forms, error, isFetching, isLoading, status } = trpc.form.listForms.useQuery({ includeArchived });
+export function useListForms(includeArchived?: boolean, workspaceId?: string) {
+    const { data: forms, error, isFetching, isLoading, status } = trpc.form.listForms.useQuery({ includeArchived, workspaceId });
     return { forms, error, isFetching, isLoading, status };
+}
+
+export function useListWorkspaceForms(workspaceId: string | null) {
+    const { data: forms, isLoading } = trpc.form.listForms.useQuery({ workspaceId: workspaceId!, includeArchived: true }, { enabled: !!workspaceId });
+    return { forms, isLoading };
 }
 
 export function useGetForm(formId: string) {
@@ -182,4 +187,21 @@ export function useImproveField(formId: string) {
         onSuccess: async () => { await utils.formField.listFields.invalidate({ formId }); },
     });
     return { improveFieldAsync: mutation.mutateAsync, isPending: mutation.isPending, improvingFieldId: mutation.variables?.fieldId ?? null };
+}
+
+export function useSuggestFields() {
+    const mutation = trpc.form.suggestFields.useMutation();
+    return { suggestFieldsAsync: mutation.mutateAsync, suggestions: mutation.data?.suggestions, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useUpdateSlug() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.updateSlug.useMutation({ onSuccess: () => { utils.form.getForm.invalidate(); } });
+    return { updateSlugAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
+export function useMoveForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.moveForm.useMutation({ onSuccess: () => { utils.form.listForms.invalidate(); } });
+    return { moveFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
 }

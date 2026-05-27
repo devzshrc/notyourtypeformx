@@ -8,7 +8,7 @@ import { useSwipeable } from "react-swipeable";
 import { useTheme } from "next-themes";
 import confetti from "canvas-confetti";
 import { useGetPublicForm, useSubmitForm, useRecordEvent, useVerifyFormPassword } from "~/hooks/api/form";
-import { formThemesLight, formThemesDark, type FormTheme } from "~/lib/form-themes";
+import { formThemesLight, formThemesDark, getThemeBackgroundImage, type FormTheme } from "~/lib/form-themes";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -84,8 +84,8 @@ function validateField(field: Field, value: AnswerValue | undefined): string | n
 
 const slideVariants = {
     enter: (dir: "forward" | "backward") => ({ x: dir === "forward" ? 60 : -60, opacity: 0 }),
-    center: { x: 0, opacity: 1, transition: { duration: 0.25, ease: "easeOut" } },
-    exit: (dir: "forward" | "backward") => ({ x: dir === "forward" ? -60 : 60, opacity: 0, transition: { duration: 0.18, ease: "easeIn" } }),
+    center: { x: 0, opacity: 1, transition: { duration: 0.25, ease: "easeOut" as const } },
+    exit: (dir: "forward" | "backward") => ({ x: dir === "forward" ? -60 : 60, opacity: 0, transition: { duration: 0.18, ease: "easeIn" as const } }),
 };
 
 export default function PublicFormPage() {
@@ -200,6 +200,7 @@ export default function PublicFormPage() {
     const themeVars = resolvedTheme === "dark"
         ? (formThemesDark[themeKey] ?? {})
         : (formThemesLight[themeKey] ?? {});
+    const themeBg = getThemeBackgroundImage(themeKey);
 
     // Password gate
     if (form.hasPassword && !passwordUnlocked) {
@@ -551,6 +552,12 @@ export default function PublicFormPage() {
 
     return (
         <main {...swipeHandlers} style={themeVars as React.CSSProperties} className="relative flex min-h-screen flex-col bg-background text-foreground">
+            {themeBg && (
+                <div
+                    className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"
+                    style={{ backgroundImage: `url(${themeBg})` }}
+                />
+            )}
             {isDraft && <DraftBanner />}
             {showResume && !hasWelcome && (
                 <div className="flex items-center justify-between bg-primary/10 px-4 py-2 text-sm">

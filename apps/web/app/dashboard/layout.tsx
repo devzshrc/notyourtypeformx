@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, LogOut, Sun, Moon } from "~/components/icons";
+import { LayoutDashboard, FileText, LogOut, Building2, Sun, Moon } from "~/components/icons";
 import { useTheme } from "next-themes";
 import { useUser, useLogout } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
@@ -27,8 +27,9 @@ const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 const WC_OPACITY:   CSSProperties = { willChange: "opacity" };
 
 const NAV_ITEMS = [
-    { href: "/dashboard",       label: "Overview", icon: LayoutDashboard },
-    { href: "/dashboard/forms", label: "Forms",    icon: FileText },
+    { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard },
+    { href: "/dashboard/forms",      label: "Forms",      icon: FileText },
+    { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2 },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -70,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     {/* Nav */}
-                    <nav className="flex flex-1 flex-col gap-0.5 px-3">
+                    <nav className="flex flex-1 flex-col gap-4 px-3">
                         <StaggerList delay={0.1}>
                             {NAV_ITEMS.map((item) => {
                                 const active = pathname === item.href ||
@@ -122,9 +123,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 whileHover="hover"
                                 variants={avatarVariants}
                                 style={WC_TRANSFORM}
-                                className="flex size-8 shrink-0 cursor-default items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary"
+                                className="flex size-8 shrink-0 cursor-default items-center justify-center overflow-hidden rounded-full bg-primary/15"
                             >
-                                {initials}
+                                <img
+                                    src={`https://robohash.org/${encodeURIComponent(user?.email ?? "user")}?size=32x32`}
+                                    alt="avatar"
+                                    className="size-full"
+                                />
                             </motion.div>
                             <p className="min-w-0 flex-1 truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
                         </div>
@@ -142,14 +147,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                                 aria-label="Toggle theme"
                             >
-                                <AnimatePresence mode="wait">
+                                <AnimatePresence mode="wait" initial={false}>
                                     <motion.div
                                         key={theme}
-                                        initial={shouldReduce ? false : { scale: 0.9, opacity: 0, rotate: -90 }}
-                                        animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                                        exit={shouldReduce ? {} : { scale: 0.9, opacity: 0, rotate: 90 }}
-                                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                                        style={WC_OPACITY}
+                                        initial={{ clipPath: "inset(0 0 100% 0)" }}
+                                        animate={{ clipPath: "inset(0 0 0% 0)" }}
+                                        exit={{ clipPath: "inset(100% 0 0 0)" }}
+                                        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                                     >
                                         {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
                                     </motion.div>
@@ -173,9 +177,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </Link>
                         ))}
                         <Button variant="ghost" size="icon" className="size-9" onClick={handleLogout}><LogOut className="size-4" /></Button>
-                        <Button variant="ghost" size="icon" className="size-9" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-                            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                        </Button>
                     </div>
                 </header>
 

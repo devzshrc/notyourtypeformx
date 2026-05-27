@@ -3,10 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2 } from "~/components/icons";
+import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft } from "~/components/icons";
 import { toast } from "sonner";
 
-import { useCreateForm, useListForms, useCloneForm, useArchiveForm, useGenerateForm } from "~/hooks/api/form";
+import { useCreateForm, useListForms, useCloneForm, useArchiveForm, useGenerateForm, useMoveForm } from "~/hooks/api/form";
+import { useListWorkspaces } from "~/hooks/api/workspace";
 
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
@@ -64,15 +65,19 @@ export default function DashboardForms() {
     const [description, setDescription] = useState("");
     const [aiPrompt, setAiPrompt] = useState("");
 
+    const { workspaces } = useListWorkspaces();
+    const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>();
+
     const { createFormAsync, error, status } = useCreateForm();
-    const { forms, isLoading } = useListForms(true);
+    const { forms, isLoading } = useListForms(true, activeWorkspaceId);
     const { cloneFormAsync, isPending: cloning } = useCloneForm();
     const { archiveFormAsync, isPending: archiving } = useArchiveForm();
     const { generateFormAsync, isPending: generating, error: aiError } = useGenerateForm();
+    const { moveFormAsync } = useMoveForm();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        await createFormAsync({ title: title.trim(), description: description.trim() || undefined });
+        await createFormAsync({ title: title.trim(), description: description.trim() || undefined, workspaceId: activeWorkspaceId });
         setOpen(false);
         setTitle("");
         setDescription("");
@@ -101,14 +106,42 @@ export default function DashboardForms() {
         toast.success(archive ? "Form archived" : "Form restored");
     };
 
+    const handleMove = async (formId: string, workspaceId: string | null) => {
+        await moveFormAsync({ formId, workspaceId });
+        toast.success(workspaceId ? "Form moved to workspace" : "Form moved to personal");
+    };
+
     const activeForms = forms?.filter((f) => !f.isArchived) ?? [];
     const archivedForms = forms?.filter((f) => f.isArchived) ?? [];
 
     return (
         <div className="px-6 py-8">
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-semibold tracking-tight">Forms</h1>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">Forms</h1>
+                        {workspaces && workspaces.length > 0 && (
+                            <div className="mt-3 flex items-center gap-1 rounded-lg border border-border/60 bg-muted/50 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveWorkspaceId(undefined)}
+                                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${!activeWorkspaceId ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    All forms
+                                </button>
+                                {workspaces.map((ws) => (
+                                    <button
+                                        key={ws.id}
+                                        type="button"
+                                        onClick={() => setActiveWorkspaceId(ws.id)}
+                                        className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${activeWorkspaceId === ws.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                        {ws.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2">
                         {/* AI Generate Dialog */}
                         <Dialog open={aiOpen} onOpenChange={setAiOpen}>
@@ -188,7 +221,7 @@ export default function DashboardForms() {
                                         <AnimatePresence>
                                             {activeForms.map((form) => (
                                                 <StaggerItem key={form.id}>
-                                                    <FormCard form={form} onClone={handleClone} onArchive={handleArchive} cloning={cloning} archiving={archiving} />
+                                                    <FormCard form={form} onClone={handleClone} onArchive={handleArchive} onMove={handleMove} cloning={cloning} archiving={archiving} workspaces={workspaces ?? []} />
                                                 </StaggerItem>
                                             ))}
                                         </AnimatePresence>
@@ -205,7 +238,7 @@ export default function DashboardForms() {
                                         <AnimatePresence>
                                             {archivedForms.map((form) => (
                                                 <StaggerItem key={form.id}>
-                                                    <FormCard form={form} onClone={handleClone} onArchive={handleArchive} cloning={cloning} archiving={archiving} />
+                                                    <FormCard form={form} onClone={handleClone} onArchive={handleArchive} onMove={handleMove} cloning={cloning} archiving={archiving} workspaces={workspaces ?? []} />
                                                 </StaggerItem>
                                             ))}
                                         </AnimatePresence>
@@ -222,12 +255,14 @@ export default function DashboardForms() {
     );
 }
 
-type FormItem = { id: string; title: string; description?: string | null; status: "DRAFT" | "PUBLISHED"; isArchived: boolean; createdAt: Date | null };
+type FormItem = { id: string; title: string; description?: string | null; status: "DRAFT" | "PUBLISHED"; isArchived: boolean; createdAt: Date | string | null; workspaceId?: string | null };
+type WorkspaceItem = { id: string; name: string };
 
-function FormCard({ form, onClone, onArchive, cloning, archiving }: { form: FormItem; onClone: (id: string) => void; onArchive: (id: string, archive: boolean) => void; cloning: boolean; archiving: boolean }) {
+function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, workspaces }: { form: FormItem; onClone: (id: string) => void; onArchive: (id: string, archive: boolean) => void; onMove: (id: string, wsId: string | null) => void; cloning: boolean; archiving: boolean; workspaces: WorkspaceItem[] }) {
     const isLive = form.status === "PUBLISHED";
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const shouldReduce = useReducedMotion();
+    const wsName = workspaces.find((ws) => ws.id === form.workspaceId)?.name;
     return (
         <motion.div
             initial="rest"
@@ -250,6 +285,11 @@ function FormCard({ form, onClone, onArchive, cloning, archiving }: { form: Form
                             <Badge variant={isLive ? "default" : "secondary"} className="shrink-0 text-xs py-0">
                                 {isLive ? "Live" : "Draft"}
                             </Badge>
+                            {wsName && (
+                                <Badge variant="outline" className="shrink-0 text-xs py-0 gap-1">
+                                    <Building2 className="size-2.5" />{wsName}
+                                </Badge>
+                            )}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{form.description || "No description"}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground/80">
@@ -279,6 +319,20 @@ function FormCard({ form, onClone, onArchive, cloning, archiving }: { form: Form
                                     ? <><ArchiveRestore className="mr-2 size-3.5" /> Restore</>
                                     : <><Archive className="mr-2 size-3.5" /> Archive</>}
                             </DropdownMenuItem>
+                            {workspaces.length > 0 && (
+                                <>
+                                    {form.workspaceId ? (
+                                        <DropdownMenuItem onClick={() => onMove(form.id, null)}>
+                                            <ArrowRightLeft className="mr-2 size-3.5" /> Move to Personal
+                                        </DropdownMenuItem>
+                                    ) : null}
+                                    {workspaces.filter((ws) => ws.id !== form.workspaceId).map((ws) => (
+                                        <DropdownMenuItem key={ws.id} onClick={() => onMove(form.id, ws.id)}>
+                                            <ArrowRightLeft className="mr-2 size-3.5" /> Move to {ws.name}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

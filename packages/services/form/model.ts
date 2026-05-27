@@ -4,12 +4,14 @@ export const createFormInput = z.object({
     title: z.string().max(50),
     description: z.string().max(300).optional(),
     createdBy: z.uuid(),
+    workspaceId: z.uuid().optional(),
 });
 export type CreateFormInputType = z.infer<typeof createFormInput>;
 
 export const listFormsByUserIdInput = z.object({
     userId: z.uuid(),
     includeArchived: z.boolean().optional(),
+    workspaceId: z.uuid().optional(),
 });
 export type ListFormsByUserIdInputType = z.infer<typeof listFormsByUserIdInput>;
 
@@ -54,3 +56,16 @@ export type ListPublicFormsInputType = z.infer<typeof listPublicFormsInput>;
 
 export const clonePublicFormInput = z.object({ formId: z.uuid(), userId: z.uuid() });
 export type ClonePublicFormInputType = z.infer<typeof clonePublicFormInput>;
+
+export const updateSlugInput = z.object({
+    formId: z.uuid(),
+    userId: z.uuid(),
+    slug: z.string().min(3).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
+});
+export type UpdateSlugInputType = z.infer<typeof updateSlugInput>;
+
+export const getFormBySlugInput = z.object({ slug: z.string().min(3).max(80) });
+export type GetFormBySlugInputType = z.infer<typeof getFormBySlugInput>;
+
+export const moveFormInput = z.object({ formId: z.uuid(), userId: z.uuid(), workspaceId: z.uuid().nullable() });
+export type MoveFormInputType = z.infer<typeof moveFormInput>;

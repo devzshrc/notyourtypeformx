@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSignup } from "~/hooks/api/auth";
+import { useSignup, useUser } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -58,14 +58,21 @@ export default function SignupPage() {
     const [email, setEmail]       = useState("");
     const [password, setPassword] = useState("");
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { createUserWithEmailAndPasswordAsync, error, isPending } = useSignup();
+    const { data: user, isLoading } = useUser();
     const shouldReduce = useReducedMotion();
+
+    useEffect(() => { if (!isLoading && user?.id) router.push("/dashboard"); }, [isLoading, user, router]);
+
+    if (!isLoading && user?.id) return null;
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         try {
             await createUserWithEmailAndPasswordAsync({ fullName, email, password });
-            router.push("/dashboard");
+            const redirect = searchParams.get("redirect");
+            router.push(redirect && redirect.startsWith("/") ? redirect : "/dashboard");
         } catch { /* error shown inline */ }
     };
 

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
     ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Pencil, Copy,
     QrCode, Download, Lock, Clock, Hash, Eye, Globe, EyeOff,
-    ClipboardList, ExternalLink, Palette, Sparkles,
+    ClipboardList, ExternalLink, Palette, MagicWand, GripVertical,
 } from "~/components/icons";
 import QRCode from "qrcode";
 import {
@@ -182,6 +182,18 @@ export default function FormEditorPage() {
 
     const moveField = async (idx: number, dir: -1 | 1) => { if (!fields) return; const target = idx + dir; if (target < 0 || target >= fields.length) return; const ids = fields.map((f) => f.id); [ids[idx], ids[target]] = [ids[target]!, ids[idx]!]; await reorderFieldsAsync({ formId, fieldIds: ids }); };
 
+    const [dragIdx, setDragIdx] = useState<number | null>(null);
+    const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+    const handleDrop = async (dropIdx: number) => {
+        if (dragIdx === null || dragIdx === dropIdx || !fields) { setDragIdx(null); setDragOverIdx(null); return; }
+        const ids = fields.map((f) => f.id);
+        const [moved] = ids.splice(dragIdx, 1);
+        ids.splice(dropIdx, 0, moved!);
+        setDragIdx(null);
+        setDragOverIdx(null);
+        await reorderFieldsAsync({ formId, fieldIds: ids });
+    };
+
     const copyField = async (field: NonNullable<typeof fields>[number]) => {
         const map: Record<string, string> = {};
         (field.logic ?? []).forEach((r) => (map[r.equals] = r.goTo));
@@ -254,6 +266,7 @@ export default function FormEditorPage() {
                 <Tabs defaultValue="build" className="w-full">
                     <TabsList className="w-full justify-start">
                         <TabsTrigger value="build">Build</TabsTrigger>
+                        <TabsTrigger value="themes">Themes</TabsTrigger>
                         <TabsTrigger value="settings">Settings</TabsTrigger>
                         <TabsTrigger value="share">Share</TabsTrigger>
                     </TabsList>
@@ -295,17 +308,26 @@ export default function FormEditorPage() {
                                         variants={fieldRowVariants}
                                         style={WC_OPACITY_TRANSFORM}
                                         layout
+                                        draggable
+                                        onDragStart={() => setDragIdx(idx)}
+                                        onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
+                                        onDragLeave={() => setDragOverIdx(null)}
+                                        onDrop={() => handleDrop(idx)}
+                                        onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
                                     >
                                     <motion.div
                                         initial="rest"
                                         whileHover="hover"
                                         animate="rest"
                                         variants={fieldRowHoverVariants}
-                                        className="group flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:shadow-sm transition-shadow"
+                                        className={cn(
+                                            "group flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:shadow-sm transition-all",
+                                            dragIdx === idx && "opacity-50",
+                                            dragOverIdx === idx && dragIdx !== idx && "border-primary border-dashed"
+                                        )}
                                     >
-                                        <div className="flex flex-col gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
-                                            <button type="button" disabled={idx === 0} onClick={() => moveField(idx, -1)} aria-label="Move up" className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronUp className="size-4" /></button>
-                                            <button type="button" disabled={idx === fields.length - 1} onClick={() => moveField(idx, 1)} aria-label="Move down" className="text-muted-foreground hover:text-foreground disabled:opacity-20"><ChevronDown className="size-4" /></button>
+                                        <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
+                                            <GripVertical className="size-5" />
                                         </div>
                                         <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-medium text-muted-foreground">{idx + 1}</span>
                                         <div className="flex-1 min-w-0">
@@ -337,8 +359,8 @@ export default function FormEditorPage() {
                                         </div>
                                         <div className="flex gap-1 opacity-70 transition-opacity group-hover:opacity-100">
                                             <Button
-                                                variant="ghost" size="icon" className="size-8 text-yellow-500 hover:text-yellow-600"
-                                                title="Improve with AI ✨"
+                                                variant="ghost" size="icon" className="size-8 text-violet-500 hover:text-violet-600"
+                                                title="Improve with AI"
                                                 disabled={improvingField && improvingFieldId === field.id}
                                                 onClick={async () => {
                                                     try {
@@ -351,7 +373,7 @@ export default function FormEditorPage() {
                                             >
                                                 {improvingField && improvingFieldId === field.id
                                                     ? <span className="size-3.5 animate-spin rounded-full border border-current border-t-transparent" />
-                                                    : <Sparkles className="size-3.5" />}
+                                                    : <MagicWand className="size-3.5" />}
                                             </Button>
                                             <Button variant="ghost" size="icon" className="size-8" title="Duplicate field" onClick={() => copyField(field)}><Copy className="size-3.5" /></Button>
                                             <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(field)}><Pencil className="size-3.5" /></Button>
@@ -403,21 +425,14 @@ export default function FormEditorPage() {
                     </motion.div>
                     </TabsContent>
 
-                    {/* SETTINGS TAB */}
-                    <TabsContent value="settings" className="mt-6 space-y-8">
-                        <motion.div
-                            key="settings"
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
-                            className="space-y-8"
-                        >
-
-                        {/* Theme Picker */}
-                        <div>
-                            <h2 className="text-base font-medium flex items-center gap-2"><Palette className="size-4" /> Form Theme</h2>
-                            <p className="text-sm text-muted-foreground mb-4">Choose the visual style for your public form</p>
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {/* THEMES TAB */}
+                    <TabsContent value="themes" className="mt-6">
+                        <div className="space-y-4">
+                            <div>
+                                <h2 className="text-base font-medium flex items-center gap-2"><Palette className="size-4" /> Form Theme</h2>
+                                <p className="text-sm text-muted-foreground">Choose the visual style for your public form</p>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 {FORM_THEME_OPTIONS.map((theme) => (
                                     <button
                                         key={theme.value}
@@ -428,29 +443,35 @@ export default function FormEditorPage() {
                                             toast.success(`Theme set to ${theme.label}`);
                                         }}
                                         className={cn(
-                                            "relative flex flex-col items-start gap-2 rounded-lg border-2 p-3 text-left transition-all hover:shadow-md",
+                                            "relative flex flex-col items-center gap-3 rounded-xl border-2 p-6 text-center transition-all hover:shadow-md",
                                             selectedTheme === theme.value
                                                 ? "border-primary bg-primary/5"
-                                                : "border-border hover:border-primary/50"
+                                                : "border-border hover:border-primary/40"
                                         )}
                                     >
-                                        <div
-                                            className="h-8 w-full rounded-md"
-                                            style={{ background: theme.primaryColor }}
-                                        />
+                                        <div className="size-10 rounded-full" style={{ background: theme.primaryColor }} />
                                         <div>
-                                            <p className="text-sm font-medium leading-none">{theme.label}</p>
+                                            <p className="text-sm font-semibold">{theme.label}</p>
                                             <p className="text-xs text-muted-foreground mt-0.5">{theme.description}</p>
                                         </div>
                                         {selectedTheme === theme.value && (
-                                            <span className="absolute right-2 top-2 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>
+                                            <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>
                                         )}
                                     </button>
                                 ))}
                             </div>
                         </div>
+                    </TabsContent>
 
-                        <Separator />
+                    {/* SETTINGS TAB */}
+                    <TabsContent value="settings" className="mt-6 space-y-8">
+                        <motion.div
+                            key="settings"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                            className="space-y-8"
+                        >
 
                         {/* Redirect URL */}
                         <div>

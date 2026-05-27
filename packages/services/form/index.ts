@@ -3,7 +3,8 @@ import { formsTable } from "@repo/database/models/form";
 import { formsFieldsTable } from "@repo/database/models/form-field";
 import { formFieldOptionsTable } from "@repo/database/models/form-field-option";
 import { usersTable } from "@repo/database/models/user";
-import { eq, and, inArray } from "drizzle-orm";
+import { workspaceMembersTable } from "@repo/database/models/workspace";
+import { eq, and, or, inArray } from "drizzle-orm";
 import Groq from "groq-sdk";
 import { z } from "zod";
 import {
@@ -16,6 +17,9 @@ import {
     archiveFormInput, type ArchiveFormInputType,
     listPublicFormsInput, type ListPublicFormsInputType,
     clonePublicFormInput, type ClonePublicFormInputType,
+    updateSlugInput, type UpdateSlugInputType,
+    getFormBySlugInput, type GetFormBySlugInputType,
+    moveFormInput, type MoveFormInputType,
 } from "./model";
 
 // ─── AI form generation ───────────────────────────────────────────────────────
@@ -101,32 +105,65 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export default class FormService {
     public async createForm(payload: CreateFormInputType) {
-        const { title, description, createdBy } = await createFormInput.parseAsync(payload);
-        const result = await db.insert(formsTable).values({ title, description, createdBy, slug: slugify(title) }).returning({ id: formsTable.id });
+        const { title, description, createdBy, workspaceId } = await createFormInput.parseAsync(payload);
+        const result = await db.insert(formsTable).values({ title, description, createdBy, workspaceId: workspaceId ?? null, slug: slugify(title) }).returning({ id: formsTable.id });
         if (!result?.[0]?.id) throw new Error("Failed to create form");
         return { id: result[0].id };
     }
 
     public async listFormsByUserId(payload: ListFormsByUserIdInputType) {
-        const { userId, includeArchived } = await listFormsByUserIdInput.parseAsync(payload);
-        const conditions = [eq(formsTable.createdBy, userId)];
+        const { userId, includeArchived, workspaceId } = await listFormsByUserIdInput.parseAsync(payload);
+
+        // If filtering by specific workspace, just get that workspace's forms
+        if (workspaceId) {
+            const conditions = [eq(formsTable.workspaceId, workspaceId)];
+            if (!includeArchived) conditions.push(eq(formsTable.isArchived, false));
+            return await db.select({
+                id: formsTable.id, title: formsTable.title, description: formsTable.description,
+                status: formsTable.status, visibility: formsTable.visibility, isTemplate: formsTable.isTemplate,
+                isArchived: formsTable.isArchived, createdAt: formsTable.createdAt, updatedAt: formsTable.updatedAt,
+                workspaceId: formsTable.workspaceId,
+            }).from(formsTable).where(and(...conditions));
+        }
+
+        // Otherwise: personal forms (createdBy=user, no workspace) + all workspace forms user is member of
+        const memberRows = await db.select({ workspaceId: workspaceMembersTable.workspaceId }).from(workspaceMembersTable).where(eq(workspaceMembersTable.userId, userId));
+        const wsIds = memberRows.map((r) => r.workspaceId);
+
+        const ownershipCondition = and(eq(formsTable.createdBy, userId));
+        const accessCondition = wsIds.length > 0
+            ? or(ownershipCondition, inArray(formsTable.workspaceId, wsIds))!
+            : ownershipCondition!;
+
+        const conditions = [accessCondition];
         if (!includeArchived) conditions.push(eq(formsTable.isArchived, false));
+
         return await db.select({
             id: formsTable.id, title: formsTable.title, description: formsTable.description,
             status: formsTable.status, visibility: formsTable.visibility, isTemplate: formsTable.isTemplate,
             isArchived: formsTable.isArchived, createdAt: formsTable.createdAt, updatedAt: formsTable.updatedAt,
+            workspaceId: formsTable.workspaceId,
         }).from(formsTable).where(and(...conditions));
     }
 
     public async getFormById(payload: GetFormByIdInputType) {
         const { formId, userId } = await getFormByIdInput.parseAsync(payload);
-        const result = await db.select().from(formsTable).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
+        const result = await db.select().from(formsTable).where(eq(formsTable.id, formId));
         if (!result?.[0]) throw new Error("Form not found");
-        return result[0];
+        const form = result[0];
+
+        // Access check: user is creator OR member of the form's workspace
+        if (form.createdBy === userId) return form;
+        if (form.workspaceId) {
+            const membership = await db.select({ id: workspaceMembersTable.id }).from(workspaceMembersTable).where(and(eq(workspaceMembersTable.workspaceId, form.workspaceId), eq(workspaceMembersTable.userId, userId)));
+            if (membership.length > 0) return form;
+        }
+        throw new Error("Form not found");
     }
 
     public async updateForm(payload: UpdateFormInputType) {
         const { formId, userId, title, description, welcomeTitle, welcomeDescription, endingTitle, endingDescription, status, visibility, isTemplate, hiddenFields, expiresAt, maxResponses, password, theme, redirectUrl } = await updateFormInput.parseAsync(payload);
+        await this.assertFormWriteAccess(formId, userId);
         const updates: Record<string, unknown> = {};
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
@@ -144,17 +181,18 @@ export default class FormService {
         if (theme !== undefined) updates.theme = theme;
         if (redirectUrl !== undefined) updates.redirectUrl = redirectUrl;
         if (Object.keys(updates).length === 0) throw new Error("Nothing to update");
-        const result = await db.update(formsTable).set(updates).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId))).returning({ id: formsTable.id });
+        const result = await db.update(formsTable).set(updates).where(eq(formsTable.id, formId)).returning({ id: formsTable.id });
         if (!result?.[0]) throw new Error("Form not found");
         return { id: result[0].id };
     }
 
     public async deleteForm(payload: DeleteFormInputType) {
         const { formId, userId } = await deleteFormInput.parseAsync(payload);
+        await this.assertFormWriteAccess(formId, userId);
         const fieldRows = await db.select({ id: formsFieldsTable.id }).from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
         if (fieldRows.length > 0) await db.delete(formFieldOptionsTable).where(inArray(formFieldOptionsTable.fieldId, fieldRows.map((f) => f.id)));
         await db.delete(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
-        const result = await db.delete(formsTable).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId))).returning({ id: formsTable.id });
+        const result = await db.delete(formsTable).where(eq(formsTable.id, formId)).returning({ id: formsTable.id });
         if (!result?.[0]) throw new Error("Form not found");
         return { id: result[0].id };
     }
@@ -210,6 +248,43 @@ export default class FormService {
             slug: formsTable.slug, isTemplate: formsTable.isTemplate, createdAt: formsTable.createdAt,
             creatorName: usersTable.fullName,
         }).from(formsTable).leftJoin(usersTable, eq(formsTable.createdBy, usersTable.id)).where(and(...conditions));
+    }
+
+    private static RESERVED_SLUGS = new Set(["admin", "api", "app", "dashboard", "signin", "signup", "form", "templates", "embed", "f", "pricing", "settings"]);
+
+    public async updateSlug(payload: UpdateSlugInputType) {
+        const { formId, userId, slug } = await updateSlugInput.parseAsync(payload);
+        if (FormService.RESERVED_SLUGS.has(slug)) throw new Error("This slug is reserved");
+        const existing = await db.select({ id: formsTable.id }).from(formsTable).where(eq(formsTable.slug, slug));
+        if (existing.length > 0 && existing[0]!.id !== formId) throw new Error("Slug already in use");
+        const result = await db.update(formsTable).set({ slug }).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId))).returning({ id: formsTable.id });
+        if (!result?.[0]) throw new Error("Form not found");
+        return { slug };
+    }
+
+    public async getFormBySlug(payload: GetFormBySlugInputType) {
+        const { slug } = await getFormBySlugInput.parseAsync(payload);
+        const result = await db.select().from(formsTable).where(and(eq(formsTable.slug, slug), eq(formsTable.status, "PUBLISHED")));
+        if (!result?.[0]) throw new Error("Form not found");
+        const form = result[0];
+        const fields = await db.select().from(formsFieldsTable).where(eq(formsFieldsTable.formId, form.id));
+        const fieldIds = fields.map((f) => f.id);
+        const options = fieldIds.length > 0 ? await db.select().from(formFieldOptionsTable).where(inArray(formFieldOptionsTable.fieldId, fieldIds)) : [];
+        return { ...form, fields: fields.map((f) => ({ ...f, options: options.filter((o) => o.fieldId === f.id) })) };
+    }
+
+    public async moveForm(payload: MoveFormInputType) {
+        const { formId, userId, workspaceId } = await moveFormInput.parseAsync(payload);
+        // Must be form creator to move it
+        const form = await db.select({ createdBy: formsTable.createdBy }).from(formsTable).where(eq(formsTable.id, formId));
+        if (!form?.[0] || form[0].createdBy !== userId) throw new Error("Only the form creator can move it");
+        // If moving to a workspace, verify user is a member
+        if (workspaceId) {
+            const membership = await db.select({ id: workspaceMembersTable.id }).from(workspaceMembersTable).where(and(eq(workspaceMembersTable.workspaceId, workspaceId), eq(workspaceMembersTable.userId, userId)));
+            if (!membership.length) throw new Error("You are not a member of that workspace");
+        }
+        await db.update(formsTable).set({ workspaceId }).where(eq(formsTable.id, formId));
+        return { id: formId };
     }
 
     public async generateFormWithAI(userId: string, prompt: string): Promise<{ id: string }> {
@@ -334,5 +409,63 @@ RULES:
             .where(eq(formsFieldsTable.id, fieldId));
 
         return { label: improved };
+    }
+
+    /** Check if user can edit/delete a form: creator OR workspace EDITOR/ADMIN/OWNER */
+    private async assertFormWriteAccess(formId: string, userId: string) {
+        const form = await db.select({ createdBy: formsTable.createdBy, workspaceId: formsTable.workspaceId }).from(formsTable).where(eq(formsTable.id, formId));
+        if (!form?.[0]) throw new Error("Form not found");
+        if (form[0].createdBy === userId) return; // creator always has access
+        if (form[0].workspaceId) {
+            const membership = await db.select({ role: workspaceMembersTable.role }).from(workspaceMembersTable).where(and(eq(workspaceMembersTable.workspaceId, form[0].workspaceId), eq(workspaceMembersTable.userId, userId)));
+            if (membership?.[0]) {
+                const role = membership[0].role;
+                if (role === "OWNER" || role === "ADMIN" || role === "EDITOR") return;
+                throw new Error("You don't have permission to edit forms in this workspace");
+            }
+        }
+        throw new Error("Form not found");
+    }
+
+    public async suggestNextField(formId: string, userId: string): Promise<{ suggestions: Array<{ label: string; type: string; isRequired: boolean; reasoning: string }> }> {
+        if (!process.env.GROQ_API_KEY) throw new Error("AI is not configured");
+
+        const formRows = await db.select({ title: formsTable.title, description: formsTable.description, createdBy: formsTable.createdBy }).from(formsTable).where(eq(formsTable.id, formId));
+        if (!formRows?.[0] || formRows[0].createdBy !== userId) throw new Error("Form not found");
+
+        const fields = await db.select({ label: formsFieldsTable.label, type: formsFieldsTable.type }).from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
+
+        const context = JSON.stringify({ title: formRows[0].title, description: formRows[0].description, existingFields: fields.map((f) => ({ label: f.label, type: f.type })) });
+
+        const completion = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: `You are a form-building assistant. Given a form's context, suggest 3 logical next fields.
+
+Output ONLY a JSON object: { "suggestions": [{ "label": string, "type": FieldType, "isRequired": boolean, "reasoning": string }] }
+
+FIELD TYPES: TEXT, LONG_TEXT, EMAIL, NUMBER, PHONE, WEBSITE, DATE, YES_NO, MULTIPLE_CHOICE, CHECKBOXES, DROPDOWN, RATING, STATEMENT
+
+RULES:
+- Don't repeat existing fields
+- Suggest fields that logically follow the form's purpose
+- Keep labels under 100 chars
+- reasoning should be 1 sentence explaining why this field fits
+- Output ONLY valid JSON, no markdown, no explanation` },
+                { role: "user", content: context },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+            max_tokens: 512,
+        });
+
+        const raw = completion.choices[0]?.message?.content;
+        if (!raw) throw new Error("AI returned empty response");
+
+        const parsed = JSON.parse(raw);
+        const schema = z.object({ suggestions: z.array(z.object({ label: z.string().max(100), type: z.enum(FIELD_TYPES), isRequired: z.boolean(), reasoning: z.string().max(200) })).min(1).max(3) });
+        const validated = await schema.parseAsync(parsed).catch(() => { throw new Error("AI returned invalid structure"); });
+
+        return validated;
     }
 }

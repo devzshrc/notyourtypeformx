@@ -76,6 +76,7 @@ app.use("/api/submission/recordEvent", publicApiLimiter);
 app.use("/api/submission/verifyFormPassword", publicApiLimiter);
 app.use("/api/submission/getPublicForm", publicApiLimiter);
 app.use("/api/form/generateForm", aiLimiter);
+app.use("/api/form/suggestFields", aiLimiter);
 
 app.use(
     "/api",
