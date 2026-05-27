@@ -22,7 +22,6 @@ function robohash(email: string, size = 80) {
 }
 
 function canManageMembers(role: string) { return role === "OWNER" || role === "ADMIN"; }
-function canEditSettings(role: string) { return role === "OWNER" || role === "ADMIN"; }
 
 function roleIcon(role: string) {
     if (role === "OWNER") return <Crown className="size-3 text-amber-500" />;
@@ -66,7 +65,9 @@ export default function WorkspacesPage() {
             await createWorkspaceAsync({ name: name.trim(), slug });
             setName("");
             setCreateOpen(false);
-        } catch {}
+        } catch {
+            /* error surfaced via mutation toast */
+        }
     };
 
     const selectedWorkspace = workspaces?.find((ws) => ws.id === selectedWs);
@@ -343,8 +344,8 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
             const result = await inviteMemberAsync({ workspaceId, email: email.trim(), role: inviteRole });
             setLastInviteToken(result.token);
             setEmail("");
-        } catch (err: any) {
-            setLocalError(err?.message || "Failed to send invitation");
+        } catch (err) {
+            setLocalError(err instanceof Error ? err.message : "Failed to send invitation");
         }
     }, [email, inviteRole, workspaceId, inviteMemberAsync]);
 
@@ -415,7 +416,7 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Remove {m.fullName}?</AlertDialogTitle>
-                                                <AlertDialogDescription>They will lose access to all workspace forms. They'll need a new invitation to rejoin.</AlertDialogDescription>
+                                                <AlertDialogDescription>They will lose access to all workspace forms. They&apos;ll need a new invitation to rejoin.</AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
                                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -495,7 +496,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Delete &ldquo;{workspace.name}&rdquo;?</AlertDialogTitle>
-                                        <AlertDialogDescription>This will remove all members and detach all forms. Forms won't be deleted but will become personal. This cannot be undone.</AlertDialogDescription>
+                                        <AlertDialogDescription>This will remove all members and detach all forms. Forms won&apos;t be deleted but will become personal. This cannot be undone.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -508,7 +509,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium">Leave workspace</p>
-                                <p className="text-xs text-muted-foreground">You'll lose access to all workspace forms.</p>
+                                <p className="text-xs text-muted-foreground">You&apos;ll lose access to all workspace forms.</p>
                             </div>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -517,7 +518,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Leave &ldquo;{workspace.name}&rdquo;?</AlertDialogTitle>
-                                        <AlertDialogDescription>You'll need a new invitation to rejoin.</AlertDialogDescription>
+                                        <AlertDialogDescription>You&apos;ll need a new invitation to rejoin.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>

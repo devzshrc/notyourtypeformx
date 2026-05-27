@@ -87,7 +87,7 @@ function SigninContent() {
                 </Link>
                 <div className="relative z-10 space-y-4">
                     <blockquote className="text-lg font-medium leading-relaxed text-foreground/80">
-                        "Build forms that people actually want to fill."
+                        &ldquo;Build forms that people actually want to fill.&rdquo;
                     </blockquote>
                     <p className="text-sm text-muted-foreground">AI-powered · Beautiful themes · Real-time analytics</p>
                 </div>

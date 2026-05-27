@@ -23,9 +23,9 @@ export default function AcceptInvitePage() {
             await acceptInvitationAsync({ token });
             setStatus("success");
             setTimeout(() => router.push("/dashboard/workspaces"), 1500);
-        } catch (err: any) {
+        } catch (err) {
             setStatus("error");
-            setErrorMessage(err?.message || "Failed to accept invitation");
+            setErrorMessage(err instanceof Error ? err.message : "Failed to accept invitation");
         }
     };
 
@@ -80,7 +80,7 @@ export default function AcceptInvitePage() {
                     {status === "idle" && (
                         <>
                             <p className="text-sm text-muted-foreground">
-                                You've been invited to join a workspace as <span className="font-medium text-foreground">{user.email}</span>.
+                                You&apos;ve been invited to join a workspace as <span className="font-medium text-foreground">{user.email}</span>.
                             </p>
                             <Button onClick={handleAccept} disabled={isPending} className="w-full">
                                 {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}

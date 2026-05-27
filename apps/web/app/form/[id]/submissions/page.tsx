@@ -9,7 +9,7 @@ import { useListSubmissions, useGetForm, useListFields, useGetAnalytics, useSubm
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
-import { motion, FadeIn, StaggerList, StaggerItem, type Variants } from "~/components/motion";
+import { motion, StaggerList, StaggerItem, type Variants } from "~/components/motion";
 import type { CSSProperties } from "react";
 
 const statCardVariants: Variants = {

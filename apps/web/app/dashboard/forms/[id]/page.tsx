@@ -5,8 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-    ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Pencil, Copy,
-    QrCode, Download, Lock, Clock, Hash, Eye, Globe, EyeOff,
+    ArrowLeft, Plus, Trash2, Pencil, Copy,
+    QrCode, Download, Lock, Clock, Hash, Eye, Globe,
     ClipboardList, ExternalLink, Palette, MagicWand, GripVertical,
 } from "~/components/icons";
 import QRCode from "qrcode";
@@ -32,7 +32,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { FORM_THEME_OPTIONS } from "~/lib/form-themes";
 import { cn } from "~/lib/utils";
-import { motion, AnimatePresence, useReducedMotion, type Variants } from "~/components/motion";
+import { motion, AnimatePresence, type Variants } from "~/components/motion";
 import type { CSSProperties } from "react";
 
 // ─── Module-level variants ────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ export default function FormEditorPage() {
             const url = `${window.location.origin}/form/${form.slug ?? formId}`;
             QRCode.toCanvas(canvas, url, { width: 160, margin: 2 }, () => setQrGenerated(true));
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [form?.status, form?.slug, formId]);
 
     // Field dialog
@@ -179,8 +179,6 @@ export default function FormEditorPage() {
         else { await addFieldAsync({ formId, label: fLabel.trim(), type: fType, placeholder: fPlaceholder.trim() || undefined, isRequired: fRequired, index: fields?.length ?? 0, options, logic, scores }); }
         setFieldDialogOpen(false);
     };
-
-    const moveField = async (idx: number, dir: -1 | 1) => { if (!fields) return; const target = idx + dir; if (target < 0 || target >= fields.length) return; const ids = fields.map((f) => f.id); [ids[idx], ids[target]] = [ids[target]!, ids[idx]!]; await reorderFieldsAsync({ formId, fieldIds: ids }); };
 
     const [dragIdx, setDragIdx] = useState<number | null>(null);
     const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);

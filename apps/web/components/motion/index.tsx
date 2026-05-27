@@ -17,7 +17,6 @@ import { useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 const EASE = [0.23, 1, 0.32, 1] as const; // Strong ease-out (Emil Kowalski)
 const SPRING_DEFAULT = { type: "spring", stiffness: 300, damping: 30 } as const;
 const SPRING_SNAPPY  = { type: "spring", stiffness: 400, damping: 17 } as const;
-const SPRING_SLOW    = { type: "spring", stiffness: 200, damping: 28 } as const;
 
 // ─── will-change style objects (module-level to prevent new object per render) ─
 const WC_TRANSFORM:         CSSProperties = { willChange: "transform" };

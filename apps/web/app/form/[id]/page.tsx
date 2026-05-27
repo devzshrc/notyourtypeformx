@@ -144,6 +144,8 @@ export default function PublicFormPage() {
                 }
             }
         } catch { /* ignore */ }
+        // Runs once per form load; draftKey is constant and recordEvent is a stable mutation fn.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form]);
 
     // Auto-save draft to localStorage when progress changes
@@ -152,6 +154,8 @@ export default function PublicFormPage() {
         try {
             localStorage.setItem(draftKey, JSON.stringify({ step, history, formData, started }));
         } catch { /* ignore */ }
+        // draftKey is constant per form; intentionally excluded.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [step, history, formData, started, submitted]);
 
     // Mobile swipe handlers (must be called before any early returns to preserve hook order)

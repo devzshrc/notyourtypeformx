@@ -13,7 +13,6 @@ import { db, eq } from "@repo/database";
 import bcrypt from "bcryptjs";
 import * as JWT from "jsonwebtoken";
 import { env } from "../env";
-import { isValid } from "zod/v3";
 export default class UserService {
     //getUserByEmail
     private async getUserByEmail(email: string) {
@@ -25,7 +24,7 @@ export default class UserService {
     //create token
     private async generateUserToken(payload: GenerateUserTokenPayloadType) {
         const { id } = await generateUserTokenPayload.parseAsync(payload);
-        const token = JWT.sign({ id }, env.JWT_SECRET);
+        const token = JWT.sign({ id }, env.JWT_SECRET, { expiresIn: "30d" });
         return { token };
     }
 
@@ -102,7 +101,7 @@ export default class UserService {
         try {
             const result = JWT.verify(token, env.JWT_SECRET) as GenerateUserTokenPayloadType;
             return result;
-        } catch (err) {
+        } catch {
             throw new Error("Invalid token");
         }
     }

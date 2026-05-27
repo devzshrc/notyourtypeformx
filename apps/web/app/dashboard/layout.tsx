@@ -54,8 +54,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace("/signin");
     };
 
-    const initials = user?.email?.slice(0, 2).toUpperCase() ?? "??";
-
     return (
         <div className="flex min-h-screen bg-background">
             {/* ── Sidebar ── */}

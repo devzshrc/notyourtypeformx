@@ -31,6 +31,8 @@ export const nextJsConfig = [
       ...pluginReact.configs.flat.recommended.languageOptions,
       globals: {
         ...globals.serviceworker,
+        ...globals.browser,
+        ...globals.node,
       },
     },
   },
@@ -41,6 +43,9 @@ export const nextJsConfig = [
     rules: {
       ...pluginNext.configs.recommended.rules,
       ...pluginNext.configs["core-web-vitals"].rules,
+      // Remote images (avatars, logos) use <img> intentionally; next/image needs
+      // remotePatterns config and throws at runtime on unconfigured hosts.
+      "@next/next/no-img-element": "off",
     },
   },
   {
@@ -52,6 +57,8 @@ export const nextJsConfig = [
       ...pluginReactHooks.configs.recommended.rules,
       // React scope no longer necessary with new JSX transform.
       "react/react-in-jsx-scope": "off",
+      // TypeScript handles prop typing; prop-types is redundant noise.
+      "react/prop-types": "off",
     },
   },
 ];

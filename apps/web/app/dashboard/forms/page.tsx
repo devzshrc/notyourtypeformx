@@ -43,19 +43,12 @@ import {
 import type { CSSProperties } from "react";
 
 // ─── Module-level variants ────────────────────────────────────────────────────
-const formCardVariants: Variants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
-    exit:   { opacity: 0, y: -6, transition: { duration: 0.18 } },
-};
-
 const formCardHoverVariants: Variants = {
     rest:  { y: 0 },
     hover: { y: -2, transition: { type: "spring", stiffness: 300, damping: 25 } },
 };
 
-const WC_TRANSFORM:          CSSProperties = { willChange: "transform" };
-const WC_OPACITY_TRANSFORM:  CSSProperties = { willChange: "opacity, transform" };
+const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 
 export default function DashboardForms() {
     const router = useRouter();
@@ -260,7 +253,7 @@ type WorkspaceItem = { id: string; name: string };
 
 function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, workspaces }: { form: FormItem; onClone: (id: string) => void; onArchive: (id: string, archive: boolean) => void; onMove: (id: string, wsId: string | null) => void; cloning: boolean; archiving: boolean; workspaces: WorkspaceItem[] }) {
     const isLive = form.status === "PUBLISHED";
-    // eslint-disable-next-line react-hooks/rules-of-hooks
+     
     const shouldReduce = useReducedMotion();
     const wsName = workspaces.find((ws) => ws.id === form.workspaceId)?.name;
     return (

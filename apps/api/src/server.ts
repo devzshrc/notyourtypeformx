@@ -1,5 +1,4 @@
 import express from "express";
-import { logger } from "@repo/logger";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 
