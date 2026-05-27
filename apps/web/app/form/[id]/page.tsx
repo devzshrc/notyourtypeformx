@@ -374,7 +374,7 @@ export default function PublicFormPage() {
         if (next === "END" || next >= fields.length) {
             const hasScores = fields.some((f) => f.scores);
             const payload = hasScores ? { ...formData, __score: String(computeScore(formData)) } : formData;
-            await submitFormAsync({ formId, data: payload });
+            await submitFormAsync({ formId: form.id, data: payload });
             // Clear saved draft
             try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
             // Confetti on success

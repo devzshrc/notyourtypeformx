@@ -80,7 +80,7 @@ export const verifyFormPasswordInputModel = z.object({
 });
 export const verifyFormPasswordOutputModel = z.object({ valid: z.boolean() });
 
-export const getAdminStatsInputModel = z.undefined();
+export const getAdminStatsInputModel = z.object({}).optional();
 export const getAdminStatsOutputModel = z.object({
     totalForms: z.number(),
     totalSubmissions: z.number(),
