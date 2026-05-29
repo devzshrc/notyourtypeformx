@@ -20,8 +20,20 @@ import {
 import { userService } from "../../services";
 import { generatePath } from "../../utils/path-generator";
 import { signInUserWithEmailAndPassword } from "@repo/services/user/model";
+import type { CookieOptions } from "express";
+
 const getPath = generatePath("/authentication");
 const TAGS = ["Authentication"];
+
+const isProd = process.env.NODE_ENV === "production";
+
+const AUTH_COOKIE_OPTIONS: CookieOptions = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+};
 
 // url will be seen like /authentication/createUserWithEmailAndPassword
 
@@ -44,12 +56,7 @@ export const authRouter = router({
                 email,
                 password,
             });
-            ctx.setCookie("token", token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
+            ctx.setCookie("token", token, AUTH_COOKIE_OPTIONS);
             return {
                 id,
             };
@@ -72,12 +79,7 @@ export const authRouter = router({
                 email,
                 password,
             });
-            ctx.setCookie("token", token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
+            ctx.setCookie("token", token, AUTH_COOKIE_OPTIONS);
             return {
                 id,
             };
@@ -94,12 +96,7 @@ export const authRouter = router({
         .output(signInWithGoogleOutputModel)
         .mutation(async ({ input, ctx }) => {
             const { id, token } = await userService.signInWithGoogle({ accessToken: input.accessToken });
-            ctx.setCookie("token", token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-                maxAge: 30 * 24 * 60 * 60 * 1000,
-            });
+            ctx.setCookie("token", token, AUTH_COOKIE_OPTIONS);
             return { id };
         }),
     getLoggedInUserInfo: authenticatedProcedure
@@ -128,7 +125,12 @@ export const authRouter = router({
         .input(logoutInputModel)
         .output(logoutOutputModel)
         .mutation(async ({ ctx }) => {
-            ctx.clearCookie("token");
+            ctx.clearCookie("token", {
+                httpOnly: true,
+                secure: isProd,
+                sameSite: isProd ? "none" : "lax",
+                path: "/",
+            });
             return { success: true };
         }),
 });

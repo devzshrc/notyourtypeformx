@@ -19,6 +19,6 @@ export function getCookie(
 }
 
 //clearCookie
-export function clearCookie(res: Response, name: string) {
-    res.clearCookie(name)
+export function clearCookie(res: Response, name: string, opts?: CookieOptions) {
+    res.clearCookie(name, opts)
 }

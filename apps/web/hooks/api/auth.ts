@@ -116,7 +116,7 @@ export function useLogout() {
     const mutation = trpc.auth.logout.useMutation({
         onSuccess: async () => {
             await clearSession();
-            await utils.auth.getLoggedInUserInfo.invalidate();
+            utils.auth.getLoggedInUserInfo.setData(undefined, undefined);
         },
     });
     return { logoutAsync: mutation.mutateAsync, isPending: mutation.isPending };

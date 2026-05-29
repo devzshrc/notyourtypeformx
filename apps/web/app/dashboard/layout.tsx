@@ -48,13 +48,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // both cookies then redirect. Redirect via effect, never during render.
     useEffect(() => {
         if (!isLoading && !user?.id) {
-            const target = `/signin?redirect=${encodeURIComponent(pathname)}`;
             logoutAsync().catch(() => {
-                // If API logout fails, still clear the web-domain marker
                 fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
-            }).finally(() => router.replace(target));
+            }).finally(() => router.replace("/"));
         }
-    }, [isLoading, user?.id, router, pathname, logoutAsync]);
+    }, [isLoading, user?.id, router, logoutAsync]);
 
     if (isLoading || !user?.id) {
         return <div className="min-h-screen bg-background" />;
@@ -64,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const handleLogout = async () => {
         await logoutAsync();
-        router.replace("/signin");
+        router.replace("/");
     };
 
     return (

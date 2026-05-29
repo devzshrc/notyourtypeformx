@@ -13,6 +13,9 @@ import { env } from "./env";
 import cookieParser from "cookie-parser";
 
 export const app = express();
+
+// Trust reverse proxy (needed in production for secure cookies behind TLS termination)
+app.set("trust proxy", 1);
 const openApiDocument = generateOpenApiDocument(serverRouter, {
     title: "Schema API",
     version: "1.0.0",
