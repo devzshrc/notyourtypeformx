@@ -1,4 +1,15 @@
 import { trpc } from "~/trpc/client";
+
+/** Set the web-domain session marker so middleware allows /dashboard access. */
+async function markSession() {
+    await fetch("/api/auth/session", { method: "POST" });
+}
+
+/** Clear the web-domain session marker on logout. */
+async function clearSession() {
+    await fetch("/api/auth/session", { method: "DELETE" });
+}
+
 export function useSignup() {
     const utils = trpc.useUtils();
     const {
@@ -13,6 +24,7 @@ export function useSignup() {
         status,
     } = trpc.auth.createUserWithEmailAndPassword.useMutation({
         onSuccess: async () => {
+            await markSession();
             await utils.auth.getLoggedInUserInfo.invalidate();
         },
     });
@@ -42,6 +54,7 @@ export function useSignin() {
         status,
     } = trpc.auth.signInUserWithEmailAndPassword.useMutation({
         onSuccess: async () => {
+            await markSession();
             await utils.auth.getLoggedInUserInfo.invalidate();
         },
     });
@@ -70,6 +83,7 @@ export function useGoogleSignIn() {
         status,
     } = trpc.auth.signInWithGoogle.useMutation({
         onSuccess: async () => {
+            await markSession();
             await utils.auth.getLoggedInUserInfo.invalidate();
         },
     });
@@ -101,6 +115,7 @@ export function useLogout() {
     const utils = trpc.useUtils();
     const mutation = trpc.auth.logout.useMutation({
         onSuccess: async () => {
+            await clearSession();
             await utils.auth.getLoggedInUserInfo.invalidate();
         },
     });

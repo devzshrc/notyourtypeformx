@@ -43,14 +43,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const { theme, setTheme } = useTheme();
     const shouldReduce = useReducedMotion();
 
-    // Middleware gates /dashboard on cookie *presence*; this is the fallback for an
-    // expired/invalid session (cookie present but token rejected by the API). Clear the
-    // stale cookie first so the presence gate stops re-admitting, then redirect. Redirect
-    // via effect, never during render.
+    // Middleware gates /dashboard on session marker; this is the fallback for an
+    // expired/invalid session (marker present but JWT rejected by the API). Clear
+    // both cookies then redirect. Redirect via effect, never during render.
     useEffect(() => {
         if (!isLoading && !user?.id) {
             const target = `/signin?redirect=${encodeURIComponent(pathname)}`;
-            logoutAsync().catch(() => {}).finally(() => router.replace(target));
+            logoutAsync().catch(() => {
+                // If API logout fails, still clear the web-domain marker
+                fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
+            }).finally(() => router.replace(target));
         }
     }, [isLoading, user?.id, router, pathname, logoutAsync]);
 
