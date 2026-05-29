@@ -85,6 +85,7 @@ app.use("/api/submission/submitForm", submitLimiter);
 app.use("/api/submission/recordEvent", publicApiLimiter);
 app.use("/api/submission/verifyFormPassword", publicApiLimiter);
 app.use("/api/submission/getPublicForm", publicApiLimiter);
+app.use("/api/authentication/signInWithGoogle", publicApiLimiter);
 app.use("/api/form/generateForm", aiLimiter);
 app.use("/api/form/suggestFields", aiLimiter);
 

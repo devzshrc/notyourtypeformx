@@ -58,6 +58,24 @@ export function useSignin() {
     };
 }
 
+export function useGoogleSignIn() {
+    const utils = trpc.useUtils();
+    const {
+        mutateAsync: signInWithGoogleAsync,
+        mutate: signInWithGoogle,
+        error,
+        isError,
+        isPending,
+        isSuccess,
+        status,
+    } = trpc.auth.signInWithGoogle.useMutation({
+        onSuccess: async () => {
+            await utils.auth.getLoggedInUserInfo.invalidate();
+        },
+    });
+    return { signInWithGoogleAsync, signInWithGoogle, error, isError, isPending, isSuccess, status };
+}
+
 export function useUser() {
     const {
         data: user,

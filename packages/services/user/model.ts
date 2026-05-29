@@ -17,3 +17,8 @@ export const signInUserWithEmailAndPassword = z.object({
     password: z.string().describe("Password of the user"),
 });
 export type SignInUserWithEmailAndPasswordType = z.infer<typeof signInUserWithEmailAndPassword>;
+
+export const signInWithGoogle = z.object({
+    accessToken: z.string().min(1).describe("Google OAuth access token from the web client"),
+});
+export type SignInWithGoogleType = z.infer<typeof signInWithGoogle>;

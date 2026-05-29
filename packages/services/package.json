@@ -38,6 +38,7 @@
     "google-auth-library": "^10.5.0",
     "groq-sdk": "^1.2.0",
     "jsonwebtoken": "^9.0.3",
+    "resend": "^6.12.4",
     "zod": "^4.3.5"
   }
 }

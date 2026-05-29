@@ -77,6 +77,7 @@ import {
     UserMultipleIcon,
     AlertCircleIcon,
     Link01Icon,
+    AiBrain01Icon,
 } from "@hugeicons/core-free-icons";
 
 type IconObject = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -161,3 +162,4 @@ export const AlertCircle = make(AlertCircleIcon);
 export const Link = make(Link01Icon);
 export const Edit3 = make(Edit02Icon);
 export const EyeIcon = make(ViewIcon);
+export const AiBrain = make(AiBrain01Icon);

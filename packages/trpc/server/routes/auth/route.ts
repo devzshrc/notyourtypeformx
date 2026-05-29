@@ -12,6 +12,8 @@ import {
     getLoggedInUserInfoOutputModel,
     signInUserWithEmailAndPasswordInputModel,
     signInUserWithEmailAndPasswordOutputModel,
+    signInWithGoogleInputModel,
+    signInWithGoogleOutputModel,
     logoutInputModel,
     logoutOutputModel,
 } from "./model";
@@ -79,6 +81,26 @@ export const authRouter = router({
             return {
                 id,
             };
+        }),
+    signInWithGoogle: publicProcedure
+        .meta({
+            openapi: {
+                method: "POST",
+                path: getPath("/signInWithGoogle"),
+                tags: TAGS,
+            },
+        })
+        .input(signInWithGoogleInputModel)
+        .output(signInWithGoogleOutputModel)
+        .mutation(async ({ input, ctx }) => {
+            const { id, token } = await userService.signInWithGoogle({ accessToken: input.accessToken });
+            ctx.setCookie("token", token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+            });
+            return { id };
         }),
     getLoggedInUserInfo: authenticatedProcedure
         .meta({

@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
-import { Inter, Source_Serif_4, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import "@cloudflare/kumo/styles";
 import "./globals.css";
 import { GlobalProviders } from "~/providers/global";
 
-const fontSans = Inter({
+const fontSans = Geist({
     subsets: ["latin"],
-    variable: "--font-inter",
+    variable: "--font-geist-sans",
 });
 
-const fontSerif = Source_Serif_4({
+const fontMono = Geist_Mono({
     subsets: ["latin"],
-    variable: "--font-source-serif",
-});
-
-const fontMono = JetBrains_Mono({
-    subsets: ["latin"],
-    variable: "--font-jetbrains-mono",
+    variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -30,7 +26,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} font-sans antialiased`}>
+            <body className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`} suppressHydrationWarning>
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-medium focus:shadow-lg">
                     Skip to content
                 </a>

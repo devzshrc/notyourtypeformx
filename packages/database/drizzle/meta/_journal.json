@@ -85,6 +85,13 @@
       "when": 1779866467210,
       "tag": "0011_cooing_lenny_balinger",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780077237085,
+      "tag": "0012_square_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

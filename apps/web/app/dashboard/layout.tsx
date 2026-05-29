@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { flushSync } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, LogOut, Building2, LayoutTemplate } from "~/components/icons";
-import { ThemeToggleIcon } from "~/components/ui/theme-toggle-icon";
+import { LayoutDashboard, FileText, LogOut, Building2, LayoutTemplate, Sun, Moon } from "~/components/icons";
 import { useTheme } from "next-themes";
 import { useUser, useLogout } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
@@ -60,36 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return <div className="min-h-screen bg-background" />;
     }
 
-    const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
-        const next = theme === "dark" ? "light" : "dark";
-        const doc = document as Document & {
-            startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
-        };
-        // Fallback: no View Transitions support or reduced motion → plain swap.
-        if (shouldReduce || !doc.startViewTransition) {
-            setTheme(next);
-            return;
-        }
-        const x = e.clientX;
-        const y = e.clientY;
-        const endRadius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-        const root = document.documentElement;
-        // flushSync forces next-themes to apply the .dark class synchronously inside the
-        // transition callback, so the before/after snapshots actually differ.
-        const transition = doc.startViewTransition(() => flushSync(() => setTheme(next)));
-        transition.ready.then(() => {
-            // Both directions sweep identically: the incoming theme expands as a circle
-            // from the toggle button across the screen.
-            root.animate(
-                { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
-                {
-                    duration: 340,
-                    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-                    pseudoElement: "::view-transition-new(root)",
-                },
-            );
-        });
-    };
+    const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
     const handleLogout = async () => {
         await logoutAsync();
@@ -183,13 +152,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </Button>
                             <Button
                                 variant="ghost" size="icon"
-                                className="group/theme relative size-8 overflow-hidden text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground"
+                                className="size-8 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground"
                                 onClick={toggleTheme}
                                 aria-label="Toggle theme"
                             >
-                                {/* subtle glow that blooms on hover — sleek, not loud */}
-                                <span className="pointer-events-none absolute inset-0 scale-50 rounded-full bg-primary/10 opacity-0 transition-all duration-300 group-hover/theme:scale-100 group-hover/theme:opacity-100" />
-                                <ThemeToggleIcon dark={theme === "dark"} className="relative size-4" />
+                                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
                             </Button>
                         </div>
                     </motion.div>

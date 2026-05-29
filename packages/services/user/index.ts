@@ -7,12 +7,16 @@ import {
     type GenerateUserTokenPayloadType,
     signInUserWithEmailAndPassword,
     type SignInUserWithEmailAndPasswordType,
+    signInWithGoogle,
+    type SignInWithGoogleType,
 } from "./model";
 import { usersTable } from "@repo/database/models/user";
 import { db, eq } from "@repo/database";
 import bcrypt from "bcryptjs";
 import * as JWT from "jsonwebtoken";
 import { env } from "../env";
+import { sendEmail } from "../common/email";
+import { welcomeEmail } from "../common/email-templates";
 export default class UserService {
     //getUserByEmail
     private async getUserByEmail(email: string) {
@@ -55,10 +59,73 @@ export default class UserService {
         }
         // token generate
         const { token } = await this.generateUserToken({ id: result[0].id });
+
+        // Welcome email — fire-and-forget, never blocks signup.
+        const { subject, html } = welcomeEmail({ name: fullName, url: `${env.WEB_URL}/dashboard` });
+        void sendEmail({ to: email, subject, html, idempotencyKey: `welcome/${result[0].id}` });
+
         return {
             id: result[0].id,
             token,
         };
+    }
+
+    public async signInWithGoogle(payload: SignInWithGoogleType) {
+        const { accessToken } = await signInWithGoogle.parseAsync(payload);
+        if (!env.GOOGLE_CLIENT_ID) throw new Error("Google sign-in is not configured");
+
+        // 1) Validate the access token was issued to OUR client (prevents token from
+        //    another app being replayed here — the "confused deputy" attack).
+        const tiRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`);
+        if (!tiRes.ok) throw new Error("Invalid Google token");
+        const ti = (await tiRes.json()) as { aud?: string };
+        if (ti.aud !== env.GOOGLE_CLIENT_ID) throw new Error("Google token was not issued for this app");
+
+        // 2) Fetch the profile with the validated token.
+        const uiRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!uiRes.ok) throw new Error("Could not load Google profile");
+        const u = (await uiRes.json()) as { sub?: string; email?: string; email_verified?: boolean; name?: string; picture?: string };
+        if (!u.sub) throw new Error("Invalid Google profile");
+        if (!u.email || u.email_verified !== true) throw new Error("Google account email is not verified");
+
+        const googleId = u.sub;
+        const email = u.email.toLowerCase();
+        const fullName = u.name || email.split("@")[0]!;
+        const avatarUrl = u.picture ?? null;
+
+        // 1) Existing Google-linked account → sign in.
+        const byGoogle = await db.select().from(usersTable).where(eq(usersTable.googleId, googleId));
+        if (byGoogle?.[0]) {
+            const { token } = await this.generateUserToken({ id: byGoogle[0].id });
+            return { id: byGoogle[0].id, token };
+        }
+
+        // 2) Same email already registered (password account) → link Google to it.
+        //    Safe because Google asserted email_verified.
+        const existing = await this.getUserByEmail(email);
+        if (existing) {
+            await db
+                .update(usersTable)
+                .set({ googleId, avatarUrl: existing.avatarUrl ?? avatarUrl, emailVerified: existing.emailVerified ?? new Date() })
+                .where(eq(usersTable.id, existing.id));
+            const { token } = await this.generateUserToken({ id: existing.id });
+            return { id: existing.id, token };
+        }
+
+        // 3) New user → create (no password, provider = google).
+        const result = await db
+            .insert(usersTable)
+            .values({ fullName, email, googleId, avatarUrl, emailVerified: new Date(), authProvider: "google" })
+            .returning({ id: usersTable.id });
+        if (!result?.[0]?.id) throw new Error("something went wrong while creating a new user");
+
+        const { token } = await this.generateUserToken({ id: result[0].id });
+        const welcome = welcomeEmail({ name: fullName, url: `${env.WEB_URL}/dashboard` });
+        void sendEmail({ to: email, subject: welcome.subject, html: welcome.html, idempotencyKey: `welcome/${result[0].id}` });
+
+        return { id: result[0].id, token };
     }
 
     public async signInUserWithEmailAndPassword(payload: SignInUserWithEmailAndPasswordType) {

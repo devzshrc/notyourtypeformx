@@ -3,6 +3,9 @@ import { workspacesTable, workspaceMembersTable, workspaceInvitationsTable } fro
 import { formsTable } from "@repo/database/models/form";
 import { usersTable } from "@repo/database/models/user";
 import crypto from "crypto";
+import { env } from "../env";
+import { sendEmail } from "../common/email";
+import { inviteEmail } from "../common/email-templates";
 import {
     createWorkspaceInput, type CreateWorkspaceInputType,
     listUserWorkspacesInput, type ListUserWorkspacesInputType,
@@ -143,7 +146,7 @@ export default class WorkspaceService {
         const normalizedEmail = email.toLowerCase().trim();
 
         // Prevent self-invite
-        const inviter = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, invitedBy));
+        const inviter = await db.select({ email: usersTable.email, fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, invitedBy));
         if (inviter?.[0]?.email.toLowerCase() === normalizedEmail) {
             throw new WorkspaceError("BAD_REQUEST", "You cannot invite yourself");
         }
@@ -165,6 +168,18 @@ export default class WorkspaceService {
 
         const result = await db.insert(workspaceInvitationsTable).values({ workspaceId, email: normalizedEmail, role, invitedBy, token, expiresAt }).returning({ id: workspaceInvitationsTable.id });
         if (!result?.[0]) throw new WorkspaceError("BAD_REQUEST", "Failed to create invitation");
+
+        // Email the invitee the accept link. Fire-and-forget: a mail failure must not
+        // fail the invitation that was already persisted above.
+        const ws = await db.select({ name: workspacesTable.name }).from(workspacesTable).where(eq(workspacesTable.id, workspaceId));
+        const { subject, html } = inviteEmail({
+            url: `${env.WEB_URL}/invite/${token}`,
+            role,
+            workspaceName: ws?.[0]?.name ?? "a workspace",
+            inviterName: inviter?.[0]?.fullName ?? "A teammate",
+        });
+        void sendEmail({ to: normalizedEmail, subject, html, idempotencyKey: `invite/${result[0].id}` });
+
         return { id: result[0].id, token };
     }
 

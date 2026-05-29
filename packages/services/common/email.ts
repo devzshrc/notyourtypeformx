@@ -1,0 +1,50 @@
+// Single transactional-email entry point for all services.
+//
+// Design rules:
+// - Resend's Node SDK returns { data, error } and does NOT throw — we check `error`.
+// - Sending must NEVER break the request that triggered it. Callers fire-and-forget;
+//   this module also swallows/logs its own failures.
+// - When RESEND_API_KEY is unset (local dev, tests) we log instead of sending, so the
+//   app works end-to-end without a key.
+import { Resend } from "resend";
+import { env } from "../env";
+
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+
+export interface SendEmailOptions {
+    to: string | string[];
+    subject: string;
+    html: string;
+    /** Stable key so retries don't double-send. Format: `<event>/<entity-id>`. */
+    idempotencyKey?: string;
+    replyTo?: string;
+}
+
+/**
+ * Send a transactional email. Resolves to `{ id }` on success or `null` on
+ * skip/failure. Never throws — safe to `await` inside a mutation without a try/catch.
+ */
+export async function sendEmail(opts: SendEmailOptions): Promise<{ id: string } | null> {
+    const { to, subject, html, idempotencyKey, replyTo } = opts;
+
+    if (!resend) {
+        console.warn(`[email skipped — no RESEND_API_KEY] "${subject}" → ${Array.isArray(to) ? to.join(", ") : to}`);
+        return null;
+    }
+
+    try {
+        const { data, error } = await resend.emails.send(
+            { from: env.EMAIL_FROM, to, subject, html, ...(replyTo ? { replyTo } : {}) },
+            idempotencyKey ? { idempotencyKey } : undefined,
+        );
+        if (error) {
+            console.error(`[email failed] "${subject}":`, error.message);
+            return null;
+        }
+        return data ? { id: data.id } : null;
+    } catch (err) {
+        // Network/unexpected — log, never propagate into the caller's request.
+        console.error(`[email error] "${subject}":`, err);
+        return null;
+    }
+}

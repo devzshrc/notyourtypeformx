@@ -4,6 +4,7 @@ import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useSignup, useUser } from "~/hooks/api/auth";
+import { GoogleAuthButton } from "~/components/auth/google-button";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -193,6 +194,10 @@ function SignupContent() {
                             </StaggerItem>
                         </StaggerList>
                     </form>
+
+                    <div className="mt-6">
+                        <GoogleAuthButton />
+                    </div>
 
                     <p className="mt-8 text-center text-sm text-muted-foreground">
                         Already have an account?{" "}
