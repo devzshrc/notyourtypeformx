@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { flushSync } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, LogOut, Building2, Sun, Moon } from "~/components/icons";
+import { LayoutDashboard, FileText, LogOut, Building2, LayoutTemplate } from "~/components/icons";
+import { ThemeToggleIcon } from "~/components/ui/theme-toggle-icon";
 import { useTheme } from "next-themes";
 import { useUser, useLogout } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
@@ -20,15 +23,17 @@ import type { Variants } from "~/components/motion";
 // ─── Module-level variants ────────────────────────────────────────────────────
 const avatarVariants: Variants = {
     rest:  { scale: 1 },
-    hover: { scale: 1.08, transition: { type: "spring", stiffness: 400, damping: 17 } },
+    hover: { scale: 1.03, transition: { type: "spring", stiffness: 320, damping: 32 } },
 };
 
 const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 const WC_OPACITY:   CSSProperties = { willChange: "opacity" };
+const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
 
 const NAV_ITEMS = [
     { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard },
     { href: "/dashboard/forms",      label: "Forms",      icon: FileText },
+    { href: "/dashboard/templates",  label: "Templates",  icon: LayoutTemplate },
     { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2 },
 ];
 
@@ -40,14 +45,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const { theme, setTheme } = useTheme();
     const shouldReduce = useReducedMotion();
 
-    if (!isLoading && !user?.id) {
-        router.replace("/signin");
-        return null;
-    }
+    // Middleware gates /dashboard on cookie *presence*; this is the fallback for an
+    // expired/invalid session (cookie present but token rejected by the API). Clear the
+    // stale cookie first so the presence gate stops re-admitting, then redirect. Redirect
+    // via effect, never during render.
+    useEffect(() => {
+        if (!isLoading && !user?.id) {
+            const target = `/signin?redirect=${encodeURIComponent(pathname)}`;
+            logoutAsync().catch(() => {}).finally(() => router.replace(target));
+        }
+    }, [isLoading, user?.id, router, pathname, logoutAsync]);
 
-    if (isLoading) {
+    if (isLoading || !user?.id) {
         return <div className="min-h-screen bg-background" />;
     }
+
+    const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
+        const next = theme === "dark" ? "light" : "dark";
+        const doc = document as Document & {
+            startViewTransition?: (cb: () => void) => { ready: Promise<void>; finished: Promise<void> };
+        };
+        // Fallback: no View Transitions support or reduced motion → plain swap.
+        if (shouldReduce || !doc.startViewTransition) {
+            setTheme(next);
+            return;
+        }
+        const x = e.clientX;
+        const y = e.clientY;
+        const endRadius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+        const root = document.documentElement;
+        // flushSync forces next-themes to apply the .dark class synchronously inside the
+        // transition callback, so the before/after snapshots actually differ.
+        const transition = doc.startViewTransition(() => flushSync(() => setTheme(next)));
+        transition.ready.then(() => {
+            // Both directions sweep identically: the incoming theme expands as a circle
+            // from the toggle button across the screen.
+            root.animate(
+                { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+                {
+                    duration: 340,
+                    easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+                    pseudoElement: "::view-transition-new(root)",
+                },
+            );
+        });
+    };
 
     const handleLogout = async () => {
         await logoutAsync();
@@ -61,7 +103,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
                     {/* Logo */}
                     <div className="px-5 py-5">
-                        <Link href="/dashboard">
+                        <Link href="/">
                             <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                                 Schema
                             </span>
@@ -93,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                         initial={shouldReduce ? false : { opacity: 0 }}
                                                         animate={{ opacity: 1 }}
                                                         exit={{ opacity: 0 }}
-                                                        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                                                        transition={{ type: "spring", stiffness: 380, damping: 34 }}
                                                         style={{ ...WC_OPACITY, zIndex: 0 }}
                                                     />
                                                 )}
@@ -109,9 +151,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User section */}
                     <motion.div
-                        initial={shouldReduce ? false : { opacity: 0, y: 8 }}
+                        initial={shouldReduce ? false : { opacity: 0, y: 3 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 30 }}
+                        transition={{ delay: 0.12, type: "spring", stiffness: 260, damping: 34 }}
                         style={WC_OPACITY}
                         className="border-t border-border/60 px-3 py-4"
                     >
@@ -141,21 +183,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </Button>
                             <Button
                                 variant="ghost" size="icon"
-                                className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground"
-                                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                                className="group/theme relative size-8 overflow-hidden text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground"
+                                onClick={toggleTheme}
                                 aria-label="Toggle theme"
                             >
-                                <AnimatePresence mode="wait" initial={false}>
-                                    <motion.div
-                                        key={theme}
-                                        initial={{ clipPath: "inset(0 0 100% 0)" }}
-                                        animate={{ clipPath: "inset(0 0 0% 0)" }}
-                                        exit={{ clipPath: "inset(100% 0 0 0)" }}
-                                        transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                                    >
-                                        {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-                                    </motion.div>
-                                </AnimatePresence>
+                                {/* subtle glow that blooms on hover — sleek, not loud */}
+                                <span className="pointer-events-none absolute inset-0 scale-50 rounded-full bg-primary/10 opacity-0 transition-all duration-300 group-hover/theme:scale-100 group-hover/theme:opacity-100" />
+                                <ThemeToggleIcon dark={theme === "dark"} className="relative size-4" />
                             </Button>
                         </div>
                     </motion.div>
@@ -165,12 +199,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Mobile header ── */}
             <div className="flex flex-1 flex-col min-w-0">
                 <header className="flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-sm md:hidden">
-                    <Link href="/dashboard" className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    <Link href="/" className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
                         Schema
                     </Link>
                     <div className="flex items-center gap-1">
                         {NAV_ITEMS.map((item) => (
-                            <Link key={item.href} href={item.href} className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+                            <Link key={item.href} href={item.href} aria-label={item.label} title={item.label} className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
                                 <item.icon className="size-5" />
                             </Link>
                         ))}
@@ -182,11 +216,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <AnimatePresence mode="wait">
                     <motion.main
                         key={pathname}
-                        initial={shouldReduce ? false : { opacity: 0, y: 5 }}
+                        initial={shouldReduce ? false : { opacity: 0, y: 3 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={shouldReduce ? {} : { opacity: 0, y: -5 }}
-                        transition={{ duration: 0.2, ease: [0.21, 0.47, 0.32, 0.98] }}
-                        style={WC_OPACITY}
+                        exit={shouldReduce ? {} : { opacity: 0, y: -3 }}
+                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                        style={WC_OPACITY_TRANSFORM}
                         className="flex-1"
                         id="main-content"
                     >

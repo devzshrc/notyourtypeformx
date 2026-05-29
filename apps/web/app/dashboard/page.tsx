@@ -6,6 +6,7 @@ import { useAdminStats, useListForms } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { Skeleton } from "~/components/ui/skeleton";
+import { formatRelativeTime, formatAbsoluteTime } from "~/lib/utils";
 import {
     motion,
     FadeIn,
@@ -24,7 +25,7 @@ const statCardVariants: Variants = {
 
 const statIconVariants: Variants = {
     rest:  { scale: 1, rotate: 0 },
-    hover: { scale: 1.1, rotate: -8, transition: { type: "spring", stiffness: 400, damping: 17 } },
+    hover: { scale: 1.04, rotate: -3, transition: { type: "spring", stiffness: 320, damping: 32 } },
 };
 
 const formRowVariants: Variants = {
@@ -65,7 +66,7 @@ function StatCard({ icon, iconBg, iconColor, label, value }: {
             >
                 {icon}
             </motion.div>
-            <p className="mt-3 text-2xl font-bold tracking-tight">{value}</p>
+            <p className="mt-3 text-2xl font-bold tracking-tight">{typeof value === "number" ? value.toLocaleString() : value}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
         </motion.div>
     );
@@ -94,10 +95,10 @@ export default function AdminDashboard() {
                     </div>
                 ) : stats ? (
                     <StaggerList className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        <StaggerItem><StatCard icon={<FileText className="size-4" />}    iconBg="bg-blue-500/15"   iconColor="text-blue-500"   label="Total Forms"     value={stats.totalForms} /></StaggerItem>
-                        <StaggerItem><StatCard icon={<BarChart3 className="size-4" />}   iconBg="bg-green-500/15"  iconColor="text-green-500"  label="Submissions"     value={stats.totalSubmissions} /></StaggerItem>
-                        <StaggerItem><StatCard icon={<Eye className="size-4" />}         iconBg="bg-purple-500/15" iconColor="text-purple-500" label="Total Views"     value={stats.totalViews} /></StaggerItem>
-                        <StaggerItem><StatCard icon={<CheckCircle className="size-4" />} iconBg="bg-orange-500/15" iconColor="text-orange-500" label="Avg Completion"  value={`${stats.avgCompletionRate}%`} /></StaggerItem>
+                        <StaggerItem><StatCard icon={<FileText className="size-4" />}    iconBg="bg-primary/15"   iconColor="text-primary"   label="Total Forms"     value={stats.totalForms} /></StaggerItem>
+                        <StaggerItem><StatCard icon={<BarChart3 className="size-4" />}   iconBg="bg-primary/15"   iconColor="text-primary"   label="Submissions"     value={stats.totalSubmissions} /></StaggerItem>
+                        <StaggerItem><StatCard icon={<Eye className="size-4" />}         iconBg="bg-primary/15"   iconColor="text-primary"   label="Total Views"     value={stats.totalViews} /></StaggerItem>
+                        <StaggerItem><StatCard icon={<CheckCircle className="size-4" />} iconBg="bg-primary/15"   iconColor="text-primary"   label="Avg Completion"  value={`${stats.avgCompletionRate}%`} /></StaggerItem>
                     </StaggerList>
                 ) : null}
 
@@ -136,8 +137,8 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="truncate text-sm font-medium">{form.title}</p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {form.createdAt ? new Date(form.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                                                    <p className="text-xs text-muted-foreground" title={formatAbsoluteTime(form.createdAt)}>
+                                                        {form.createdAt ? formatRelativeTime(form.createdAt) : ""}
                                                     </p>
                                                 </div>
                                             </div>

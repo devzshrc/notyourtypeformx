@@ -20,7 +20,7 @@ export const getFormOutputModel = z.object({
     welcomeTitle: z.string().nullable().optional(), welcomeDescription: z.string().nullable().optional(),
     endingTitle: z.string().nullable().optional(), endingDescription: z.string().nullable().optional(),
     expiresAt: z.date().nullable().optional(), maxResponses: z.number().nullable().optional(),
-    password: z.string().nullable().optional(), isArchived: z.boolean(),
+    hasPassword: z.boolean(), isArchived: z.boolean(),
     theme: z.string().nullable().optional(),
     redirectUrl: z.string().nullable().optional(),
     createdBy: z.string().nullable().optional(), createdAt: z.date().nullable(), updatedAt: z.date().nullable(),

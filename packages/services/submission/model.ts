@@ -1,8 +1,15 @@
 import { z } from "zod";
 
+// Cap the raw submission payload so a single response can't bloat the DB / exhaust memory.
+const MAX_SUBMISSION_BYTES = 100_000; // ~100 KB
+
 export const submitFormInput = z.object({
     formId: z.uuid(),
-    data: z.record(z.string(), z.unknown()),
+    data: z
+        .record(z.string(), z.unknown())
+        .refine((d) => JSON.stringify(d).length <= MAX_SUBMISSION_BYTES, {
+            message: "Submission payload is too large",
+        }),
 });
 export type SubmitFormInputType = z.infer<typeof submitFormInput>;
 

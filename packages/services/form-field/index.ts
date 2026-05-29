@@ -1,8 +1,9 @@
 import { db } from "@repo/database";
-import { formsTable } from "@repo/database/models/form";
 import { formsFieldsTable } from "@repo/database/models/form-field";
 import { formFieldOptionsTable } from "@repo/database/models/form-field-option";
 import { eq, and, asc, inArray } from "drizzle-orm";
+import { toLabelKey } from "../common/utils";
+import { assertFormReadAccess, assertFormWriteAccess } from "../common/access";
 import {
     addFieldInput,
     type AddFieldInputType,
@@ -16,18 +17,6 @@ import {
     type ReorderFieldsInputType,
 } from "./model";
 
-function toLabelKey(label: string): string {
-    return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-}
-
-async function verifyFormOwnership(formId: string, userId: string) {
-    const form = await db
-        .select({ id: formsTable.id })
-        .from(formsTable)
-        .where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
-    if (!form?.[0]) throw new Error("Form not found");
-}
-
 async function replaceOptions(fieldId: string, options: string[]) {
     await db.delete(formFieldOptionsTable).where(eq(formFieldOptionsTable.fieldId, fieldId));
     if (options.length === 0) return;
@@ -39,7 +28,7 @@ async function replaceOptions(fieldId: string, options: string[]) {
 export default class FormFieldService {
     public async addField(payload: AddFieldInputType) {
         const data = await addFieldInput.parseAsync(payload);
-        await verifyFormOwnership(data.formId, data.userId);
+        await assertFormWriteAccess(data.formId, data.userId);
         const result = await db
             .insert(formsFieldsTable)
             .values({
@@ -62,7 +51,7 @@ export default class FormFieldService {
 
     public async listFields(payload: ListFieldsInputType) {
         const { formId, userId } = await listFieldsInput.parseAsync(payload);
-        await verifyFormOwnership(formId, userId);
+        await assertFormReadAccess(formId, userId);
         const fields = await db
             .select()
             .from(formsFieldsTable)
@@ -82,7 +71,7 @@ export default class FormFieldService {
 
     public async updateField(payload: UpdateFieldInputType) {
         const { fieldId, formId, userId, ...fields } = await updateFieldInput.parseAsync(payload);
-        await verifyFormOwnership(formId, userId);
+        await assertFormWriteAccess(formId, userId);
         const updates: Record<string, unknown> = {};
         if (fields.label !== undefined) {
             updates.label = fields.label;
@@ -111,7 +100,7 @@ export default class FormFieldService {
 
     public async deleteField(payload: DeleteFieldInputType) {
         const { fieldId, formId, userId } = await deleteFieldInput.parseAsync(payload);
-        await verifyFormOwnership(formId, userId);
+        await assertFormWriteAccess(formId, userId);
         await db.delete(formFieldOptionsTable).where(eq(formFieldOptionsTable.fieldId, fieldId));
         const result = await db
             .delete(formsFieldsTable)
@@ -123,7 +112,7 @@ export default class FormFieldService {
 
     public async reorderFields(payload: ReorderFieldsInputType) {
         const { formId, userId, fieldIds } = await reorderFieldsInput.parseAsync(payload);
-        await verifyFormOwnership(formId, userId);
+        await assertFormWriteAccess(formId, userId);
         for (let i = 0; i < fieldIds.length; i++) {
             await db
                 .update(formsFieldsTable)

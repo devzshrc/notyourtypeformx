@@ -38,7 +38,22 @@ export const updateFormInput = z.object({
     maxResponses: z.number().int().min(1).nullable().optional(),
     password: z.string().max(100).nullable().optional(),
     theme: z.string().max(50).optional(),
-    redirectUrl: z.string().max(500).nullable().optional(),
+    redirectUrl: z
+        .string()
+        .max(500)
+        .refine(
+            (u) => {
+                try {
+                    const proto = new URL(u).protocol;
+                    return proto === "http:" || proto === "https:";
+                } catch {
+                    return false;
+                }
+            },
+            { message: "Redirect URL must be a valid http(s) URL" },
+        )
+        .nullable()
+        .optional(),
 });
 export type UpdateFormInputType = z.infer<typeof updateFormInput>;
 

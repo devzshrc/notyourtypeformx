@@ -92,14 +92,14 @@ function SignupContent() {
                 {!shouldReduce && (
                     <>
                         <motion.div
-                            animate={{ scale: [1, 1.07, 1], opacity: [0.08, 0.13, 0.08] }}
-                            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+                            animate={{ scale: [1, 1.03, 1], opacity: [0.08, 0.11, 0.08] }}
+                            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
                             style={{ willChange: "transform, opacity" }}
                             className="pointer-events-none absolute -left-20 -top-20 size-96 rounded-full bg-primary blur-3xl"
                         />
                         <motion.div
-                            animate={{ y: [0, -12, 0] }}
-                            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
                             style={{ willChange: "transform" }}
                             className="pointer-events-none absolute -bottom-20 -right-20 size-80 rounded-full bg-violet-500/10 blur-3xl"
                         />

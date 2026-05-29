@@ -14,9 +14,12 @@ import {
 import { useRef, useEffect, type ReactNode, type CSSProperties } from "react";
 
 // ─── Shared easing & spring configs (module-level, never recreated) ─────────
-const EASE = [0.23, 1, 0.32, 1] as const; // Strong ease-out (Emil Kowalski)
-const SPRING_DEFAULT = { type: "spring", stiffness: 300, damping: 30 } as const;
-const SPRING_SNAPPY  = { type: "spring", stiffness: 400, damping: 17 } as const;
+// Extremely subtle: opacity-led, near-zero travel, no overshoot. Motion should be
+// felt, not seen. Both springs are over-damped (no bounce) so transforms just settle.
+const EASE      = [0.4, 0, 0.2, 1] as const; // gentle in-out (entrances + transitions)
+const EASE_SOFT = [0.4, 0, 0.2, 1] as const; // same curve — keep everything uniform & soft
+const SPRING_DEFAULT = { type: "spring", stiffness: 260, damping: 34, mass: 1 } as const; // soft, no overshoot
+const SPRING_SNAPPY  = { type: "spring", stiffness: 320, damping: 32, mass: 1 } as const; // gentle, no overshoot
 
 // ─── will-change style objects (module-level to prevent new object per render) ─
 const WC_TRANSFORM:         CSSProperties = { willChange: "transform" };
@@ -26,44 +29,44 @@ const WC_OPACITY:           CSSProperties = { willChange: "opacity" };
 // ─── Module-level variants (never inline — per performance guidelines) ────────
 
 const fadeInVariants: Variants = {
-    hidden: { opacity: 0, y: 10 },
+    hidden: { opacity: 0, y: 3 },
     visible: { opacity: 1, y: 0 },
 };
 
 const fadeInViewVariants: Variants = {
-    hidden: { opacity: 0, y: 18 },
+    hidden: { opacity: 0, y: 5 },
     visible: { opacity: 1, y: 0 },
 };
 
 const staggerContainerVariants: Variants = {
     hidden: {},
-    visible: { transition: { staggerChildren: 0.07, delayChildren: 0 } },
+    visible: { transition: { staggerChildren: 0.035, delayChildren: 0 } },
 };
 
 const staggerItemVariants: Variants = {
-    hidden: { opacity: 0, y: 12 },
+    hidden: { opacity: 0, y: 4 },
     visible: { opacity: 1, y: 0, transition: { ...SPRING_DEFAULT } },
 };
 
 const staggerViewContainerVariants: Variants = {
     hidden: {},
-    visible: { transition: { staggerChildren: 0.08 } },
+    visible: { transition: { staggerChildren: 0.04 } },
 };
 
 const staggerViewItemVariants: Variants = {
-    hidden: { opacity: 0, y: 16 },
+    hidden: { opacity: 0, y: 5 },
     visible: { opacity: 1, y: 0, transition: { ...SPRING_DEFAULT } },
 };
 
 const slideInVariants: Record<string, Variants> = {
-    left:  { hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } },
-    right: { hidden: { opacity: 0, x:  20 }, visible: { opacity: 1, x: 0 } },
-    up:    { hidden: { opacity: 0, y: -20 }, visible: { opacity: 1, y: 0 } },
-    down:  { hidden: { opacity: 0, y:  20 }, visible: { opacity: 1, y: 0 } },
+    left:  { hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0 } },
+    right: { hidden: { opacity: 0, x:  6 }, visible: { opacity: 1, x: 0 } },
+    up:    { hidden: { opacity: 0, y: -6 }, visible: { opacity: 1, y: 0 } },
+    down:  { hidden: { opacity: 0, y:  6 }, visible: { opacity: 1, y: 0 } },
 };
 
 const scaleInVariants: Variants = {
-    hidden: { opacity: 0, scale: 0.93 },
+    hidden: { opacity: 0, scale: 0.99 },
     visible: { opacity: 1, scale: 1, transition: { ...SPRING_SNAPPY } },
 };
 
@@ -85,7 +88,7 @@ export function FadeIn({
             variants={fadeInVariants}
             transition={shouldReduce
                 ? { duration: 0 }
-                : { duration: 0.35, delay, ease: EASE }
+                : { duration: 0.3, delay, ease: EASE }
             }
             style={WC_OPACITY_TRANSFORM}
             className={className}
@@ -110,11 +113,11 @@ export function FadeInView({
         <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-50px" }}
+            viewport={{ once: true, margin: "-40px" }}
             variants={fadeInViewVariants}
             transition={shouldReduce
                 ? { duration: 0 }
-                : { duration: 0.5, delay, ease: EASE }
+                : { duration: 0.4, delay, ease: EASE }
             }
             style={WC_OPACITY_TRANSFORM}
             className={className}
@@ -275,10 +278,10 @@ export function PageTransition({
     const shouldReduce = useReducedMotion();
     return (
         <motion.div
-            initial={{ opacity: 0, y: shouldReduce ? 0 : 6 }}
+            initial={{ opacity: 0, y: shouldReduce ? 0 : 3 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: shouldReduce ? 0 : -6 }}
-            transition={{ duration: 0.22, ease: EASE }}
+            exit={{ opacity: 0, y: shouldReduce ? 0 : -3 }}
+            transition={shouldReduce ? { duration: 0 } : { duration: 0.22, ease: EASE_SOFT }}
             style={WC_OPACITY_TRANSFORM}
             className={className}
         >
@@ -293,7 +296,7 @@ export function PageTransition({
 export function HoverLift({
     children,
     className = "",
-    amount = -4,
+    amount = -2,
 }: {
     children: ReactNode;
     className?: string;
@@ -323,8 +326,8 @@ export function ScaleTap({
     const shouldReduce = useReducedMotion();
     return (
         <motion.div
-            whileHover={shouldReduce ? {} : { scale: 1.03 }}
-            whileTap={shouldReduce ? {} : { scale: 0.97 }}
+            whileHover={shouldReduce ? {} : { scale: 1.01 }}
+            whileTap={shouldReduce ? {} : { scale: 0.985 }}
             transition={SPRING_SNAPPY}
             style={WC_TRANSFORM}
             className={className}
@@ -345,8 +348,8 @@ export function ScaleCard({
     const shouldReduce = useReducedMotion();
     return (
         <motion.div
-            whileHover={shouldReduce ? {} : { scale: 1.015, y: -3 }}
-            whileTap={shouldReduce ? {} : { scale: 0.99 }}
+            whileHover={shouldReduce ? {} : { scale: 1.006, y: -1.5 }}
+            whileTap={shouldReduce ? {} : { scale: 0.994 }}
             transition={SPRING_DEFAULT}
             style={WC_TRANSFORM}
             className={className}
@@ -370,8 +373,8 @@ export function Float({
     if (shouldReduce) return <div className={className}>{children}</div>;
     return (
         <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 5, delay, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ y: [0, -4, 0] }}
+            transition={{ duration: 6.5, delay, repeat: Infinity, ease: "easeInOut" }}
             style={WC_TRANSFORM}
             className={className}
         >
@@ -392,8 +395,8 @@ export function Pulse({
     if (shouldReduce) return <div className={className}>{children}</div>;
     return (
         <motion.div
-            animate={{ opacity: [1, 0.6, 1] }}
-            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ opacity: [1, 0.82, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             style={WC_OPACITY}
             className={className}
         >

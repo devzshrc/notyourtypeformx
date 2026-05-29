@@ -6,7 +6,10 @@ import { usersTable } from "@repo/database/models/user";
 import { workspaceMembersTable } from "@repo/database/models/workspace";
 import { eq, and, or, inArray } from "drizzle-orm";
 import Groq from "groq-sdk";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { toLabelKey, slugify } from "../common/utils";
+import { assertFormReadAccess, assertFormWriteAccess } from "../common/access";
 import {
     createFormInput, type CreateFormInputType,
     listFormsByUserIdInput, type ListFormsByUserIdInputType,
@@ -26,15 +29,20 @@ import {
 
 const FIELD_TYPES = ["TEXT","LONG_TEXT","EMAIL","NUMBER","PHONE","WEBSITE","DATE","YES_NO","MULTIPLE_CHOICE","CHECKBOXES","DROPDOWN","RATING","STATEMENT"] as const;
 
+// Strip HTML/script/javascript: from AI-generated content before it is stored or rendered.
+function stripUnsafe(s: string): string {
+    return s.replace(/javascript:/gi, "").replace(/<[^>]*>/g, "").trim();
+}
+
 const GeneratedFormSchema = z.object({
-    title: z.string().min(1).max(50),
-    description: z.string().max(300),
+    title: z.string().min(1).max(50).transform(stripUnsafe),
+    description: z.string().max(300).transform(stripUnsafe),
     fields: z.array(z.object({
-        label: z.string().min(1).max(100),
+        label: z.string().min(1).max(100).transform(stripUnsafe),
         type: z.enum(FIELD_TYPES),
         isRequired: z.boolean(),
-        placeholder: z.string().nullable().optional(),
-        options: z.array(z.object({ label: z.string().min(1).max(200) })).nullable().optional(),
+        placeholder: z.string().nullable().optional().transform((v) => (v ? stripUnsafe(v) : v)),
+        options: z.array(z.object({ label: z.string().min(1).max(200).transform(stripUnsafe) })).nullable().optional(),
     })).min(1).max(15),
 });
 
@@ -92,15 +100,6 @@ RULES:
 Now generate a form for the following description:
 [FORM_DESCRIPTION_START]`;
 
-function toLabelKey(label: string): string {
-    return label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-}
-
-function slugify(title: string): string {
-    const base = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
-    return `${base || "form"}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export default class FormService {
@@ -152,18 +151,22 @@ export default class FormService {
         if (!result?.[0]) throw new Error("Form not found");
         const form = result[0];
 
+        // Never expose the (hashed) password to the client — surface a boolean instead.
+        const { password, ...rest } = form;
+        const shaped = { ...rest, hasPassword: !!password };
+
         // Access check: user is creator OR member of the form's workspace
-        if (form.createdBy === userId) return form;
+        if (form.createdBy === userId) return shaped;
         if (form.workspaceId) {
             const membership = await db.select({ id: workspaceMembersTable.id }).from(workspaceMembersTable).where(and(eq(workspaceMembersTable.workspaceId, form.workspaceId), eq(workspaceMembersTable.userId, userId)));
-            if (membership.length > 0) return form;
+            if (membership.length > 0) return shaped;
         }
         throw new Error("Form not found");
     }
 
     public async updateForm(payload: UpdateFormInputType) {
         const { formId, userId, title, description, welcomeTitle, welcomeDescription, endingTitle, endingDescription, status, visibility, isTemplate, hiddenFields, expiresAt, maxResponses, password, theme, redirectUrl } = await updateFormInput.parseAsync(payload);
-        await this.assertFormWriteAccess(formId, userId);
+        await assertFormWriteAccess(formId, userId);
         const updates: Record<string, unknown> = {};
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
@@ -177,7 +180,7 @@ export default class FormService {
         if (hiddenFields !== undefined) updates.hiddenFields = hiddenFields;
         if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
         if (maxResponses !== undefined) updates.maxResponses = maxResponses;
-        if (password !== undefined) updates.password = password;
+        if (password !== undefined) updates.password = password ? await bcrypt.hash(password, 10) : null;
         if (theme !== undefined) updates.theme = theme;
         if (redirectUrl !== undefined) updates.redirectUrl = redirectUrl;
         if (Object.keys(updates).length === 0) throw new Error("Nothing to update");
@@ -188,7 +191,7 @@ export default class FormService {
 
     public async deleteForm(payload: DeleteFormInputType) {
         const { formId, userId } = await deleteFormInput.parseAsync(payload);
-        await this.assertFormWriteAccess(formId, userId);
+        await assertFormWriteAccess(formId, userId);
         const fieldRows = await db.select({ id: formsFieldsTable.id }).from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
         if (fieldRows.length > 0) await db.delete(formFieldOptionsTable).where(inArray(formFieldOptionsTable.fieldId, fieldRows.map((f) => f.id)));
         await db.delete(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
@@ -199,7 +202,9 @@ export default class FormService {
 
     public async cloneForm(payload: CloneFormInputType) {
         const { formId, userId } = await cloneFormInput.parseAsync(payload);
-        const source = await db.select().from(formsTable).where(and(eq(formsTable.id, formId), eq(formsTable.createdBy, userId)));
+        // Any user who can read the form (creator or workspace member) may clone it.
+        await assertFormReadAccess(formId, userId);
+        const source = await db.select().from(formsTable).where(eq(formsTable.id, formId));
         if (!source?.[0]) throw new Error("Form not found");
         return this._cloneFormRow(source[0], userId);
     }
@@ -212,24 +217,28 @@ export default class FormService {
     }
 
     private async _cloneFormRow(s: typeof formsTable.$inferSelect, userId: string) {
-        const result = await db.insert(formsTable).values({
-            title: `${s.title} (copy)`.slice(0, 50), description: s.description, status: "DRAFT", visibility: "UNLISTED",
-            slug: slugify(s.title), welcomeTitle: s.welcomeTitle, welcomeDescription: s.welcomeDescription,
-            endingTitle: s.endingTitle, endingDescription: s.endingDescription, hiddenFields: s.hiddenFields,
-            createdBy: userId,
-        }).returning({ id: formsTable.id });
-        if (!result?.[0]) throw new Error("Failed to clone form");
-        const fields = await db.select().from(formsFieldsTable).where(eq(formsFieldsTable.formId, s.id));
-        for (const field of fields) {
-            const newField = await db.insert(formsFieldsTable).values({
-                formId: result[0].id, label: field.label, labelKey: field.labelKey, description: field.description,
-                placeholder: field.placeholder, isRequired: field.isRequired, index: field.index, type: field.type, logic: field.logic, scores: field.scores,
-            }).returning({ id: formsFieldsTable.id });
-            if (!newField?.[0]) continue;
-            const options = await db.select().from(formFieldOptionsTable).where(eq(formFieldOptionsTable.fieldId, field.id));
-            if (options.length > 0) await db.insert(formFieldOptionsTable).values(options.map((o) => ({ fieldId: newField[0]!.id, label: o.label, index: o.index })));
-        }
-        return { id: result[0].id };
+        // Clone is atomic: if any field/option insert fails the whole copy rolls back,
+        // so we never leave a half-cloned form behind.
+        return db.transaction(async (tx) => {
+            const result = await tx.insert(formsTable).values({
+                title: `${s.title} (copy)`.slice(0, 50), description: s.description, status: "DRAFT", visibility: "UNLISTED",
+                slug: slugify(s.title), welcomeTitle: s.welcomeTitle, welcomeDescription: s.welcomeDescription,
+                endingTitle: s.endingTitle, endingDescription: s.endingDescription, hiddenFields: s.hiddenFields,
+                createdBy: userId,
+            }).returning({ id: formsTable.id });
+            if (!result?.[0]) throw new Error("Failed to clone form");
+            const fields = await tx.select().from(formsFieldsTable).where(eq(formsFieldsTable.formId, s.id));
+            for (const field of fields) {
+                const newField = await tx.insert(formsFieldsTable).values({
+                    formId: result[0].id, label: field.label, labelKey: field.labelKey, description: field.description,
+                    placeholder: field.placeholder, isRequired: field.isRequired, index: field.index, type: field.type, logic: field.logic, scores: field.scores,
+                }).returning({ id: formsFieldsTable.id });
+                if (!newField?.[0]) throw new Error("Failed to clone form field");
+                const options = await tx.select().from(formFieldOptionsTable).where(eq(formFieldOptionsTable.fieldId, field.id));
+                if (options.length > 0) await tx.insert(formFieldOptionsTable).values(options.map((o) => ({ fieldId: newField[0]!.id, label: o.label, index: o.index })));
+            }
+            return { id: result[0].id };
+        });
     }
 
     public async archiveForm(payload: ArchiveFormInputType) {
@@ -360,18 +369,13 @@ export default class FormService {
     public async improveFieldLabel(fieldId: string, userId: string): Promise<{ label: string }> {
         if (!process.env.GROQ_API_KEY) throw new Error("AI is not configured");
 
-        // Fetch field + verify ownership
+        // Fetch field + verify write access (creator or workspace EDITOR/ADMIN/OWNER)
         const fieldRows = await db
             .select({ label: formsFieldsTable.label, formId: formsFieldsTable.formId })
             .from(formsFieldsTable)
             .where(eq(formsFieldsTable.id, fieldId));
         if (!fieldRows?.[0]) throw new Error("Field not found");
-
-        const formRows = await db
-            .select({ createdBy: formsTable.createdBy })
-            .from(formsTable)
-            .where(eq(formsTable.id, fieldRows[0].formId!));
-        if (!formRows?.[0] || formRows[0].createdBy !== userId) throw new Error("Unauthorized");
+        await assertFormWriteAccess(fieldRows[0].formId!, userId);
 
         const originalLabel = fieldRows[0].label;
 
@@ -411,27 +415,12 @@ RULES:
         return { label: improved };
     }
 
-    /** Check if user can edit/delete a form: creator OR workspace EDITOR/ADMIN/OWNER */
-    private async assertFormWriteAccess(formId: string, userId: string) {
-        const form = await db.select({ createdBy: formsTable.createdBy, workspaceId: formsTable.workspaceId }).from(formsTable).where(eq(formsTable.id, formId));
-        if (!form?.[0]) throw new Error("Form not found");
-        if (form[0].createdBy === userId) return; // creator always has access
-        if (form[0].workspaceId) {
-            const membership = await db.select({ role: workspaceMembersTable.role }).from(workspaceMembersTable).where(and(eq(workspaceMembersTable.workspaceId, form[0].workspaceId), eq(workspaceMembersTable.userId, userId)));
-            if (membership?.[0]) {
-                const role = membership[0].role;
-                if (role === "OWNER" || role === "ADMIN" || role === "EDITOR") return;
-                throw new Error("You don't have permission to edit forms in this workspace");
-            }
-        }
-        throw new Error("Form not found");
-    }
-
     public async suggestNextField(formId: string, userId: string): Promise<{ suggestions: Array<{ label: string; type: string; isRequired: boolean; reasoning: string }> }> {
         if (!process.env.GROQ_API_KEY) throw new Error("AI is not configured");
 
-        const formRows = await db.select({ title: formsTable.title, description: formsTable.description, createdBy: formsTable.createdBy }).from(formsTable).where(eq(formsTable.id, formId));
-        if (!formRows?.[0] || formRows[0].createdBy !== userId) throw new Error("Form not found");
+        await assertFormWriteAccess(formId, userId);
+        const formRows = await db.select({ title: formsTable.title, description: formsTable.description }).from(formsTable).where(eq(formsTable.id, formId));
+        if (!formRows?.[0]) throw new Error("Form not found");
 
         const fields = await db.select({ label: formsFieldsTable.label, type: formsFieldsTable.type }).from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
 
@@ -462,7 +451,12 @@ RULES:
         const raw = completion.choices[0]?.message?.content;
         if (!raw) throw new Error("AI returned empty response");
 
-        const parsed = JSON.parse(raw);
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(raw);
+        } catch {
+            throw new Error("AI returned invalid JSON");
+        }
         const schema = z.object({ suggestions: z.array(z.object({ label: z.string().max(100), type: z.enum(FIELD_TYPES), isRequired: z.boolean(), reasoning: z.string().max(200) })).min(1).max(3) });
         const validated = await schema.parseAsync(parsed).catch(() => { throw new Error("AI returned invalid structure"); });
 

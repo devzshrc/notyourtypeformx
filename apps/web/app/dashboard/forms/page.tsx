@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft } from "~/components/icons";
+import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft, FileText } from "~/components/icons";
+import { EmptyState } from "~/components/ui/empty-state";
+import { formatRelativeTime, formatAbsoluteTime } from "~/lib/utils";
 import { toast } from "sonner";
 
 import { useCreateForm, useListForms, useCloneForm, useArchiveForm, useGenerateForm, useMoveForm } from "~/hooks/api/form";
@@ -109,7 +111,7 @@ export default function DashboardForms() {
 
     return (
         <div className="px-6 py-8">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Forms</h1>
@@ -220,9 +222,11 @@ export default function DashboardForms() {
                                         </AnimatePresence>
                                     </StaggerList>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border p-8">
-                                        <p className="text-sm text-muted-foreground">No forms yet. Create one to get started.</p>
-                                    </div>
+                                    <EmptyState
+                                        icon={<FileText className="size-5" />}
+                                        title="No forms yet"
+                                        description="Create your first form to start collecting responses."
+                                    />
                                 )}
                             </TabsContent>
                             <TabsContent value="archived" className="mt-4">
@@ -237,7 +241,11 @@ export default function DashboardForms() {
                                         </AnimatePresence>
                                     </StaggerList>
                                 ) : (
-                                    <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No archived forms.</p>
+                                    <EmptyState
+                                        icon={<Archive className="size-5" />}
+                                        title="No archived forms"
+                                        description="Forms you archive will appear here."
+                                    />
                                 )}
                             </TabsContent>
                         </Tabs>
@@ -285,22 +293,22 @@ function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, worksp
                             )}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{form.description || "No description"}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground/80">
-                            {form.createdAt ? new Date(form.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
+                        <p className="mt-0.5 text-xs text-muted-foreground/80" title={formatAbsoluteTime(form.createdAt)}>
+                            {form.createdAt ? `Created ${formatRelativeTime(form.createdAt)}` : ""}
                         </p>
                     </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                    <Button asChild variant="ghost" size="icon" className="size-8" aria-label="View submissions">
-                        <Link href={`/form/${form.id}/submissions`}><Eye className="size-3.5" /></Link>
+                <div className="flex shrink-0 items-center gap-1.5">
+                    <Button asChild variant="ghost" size="sm" className="gap-1.5">
+                        <Link href={`/dashboard/forms/${form.id}/responses`}><Eye className="size-4" /> <span className="hidden sm:inline">Responses</span></Link>
                     </Button>
-                    <Button asChild variant="ghost" size="icon" className="size-8" aria-label="Edit form">
-                        <Link href={`/dashboard/forms/${form.id}`}><PencilLine className="size-3.5" /></Link>
+                    <Button asChild variant="outline" size="sm" className="gap-1.5">
+                        <Link href={`/dashboard/forms/${form.id}`}><PencilLine className="size-4" /> <span className="hidden sm:inline">Edit</span></Link>
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="size-8" aria-label="More options">
-                                <MoreVertical className="size-3.5" />
+                                <MoreVertical className="size-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-36">

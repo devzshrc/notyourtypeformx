@@ -4,6 +4,7 @@ import { formsFieldsTable } from "@repo/database/models/form-field";
 import { submissionsTable } from "@repo/database/models/submission";
 import { formEventsTable } from "@repo/database/models/form-event";
 import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import {
     submitFormInput,
     type SubmitFormInputType,
@@ -34,25 +35,32 @@ export default class SubmissionService {
         if (form[0].expiresAt && new Date() > form[0].expiresAt) {
             throw new Error("This form has expired and is no longer accepting responses");
         }
-        // Check max responses
-        if (form[0].maxResponses) {
-            const countResult = await db.select({ c: count() }).from(submissionsTable).where(eq(submissionsTable.formId, formId));
-            if ((countResult[0]?.c ?? 0) >= form[0].maxResponses) {
-                throw new Error("This form has reached its maximum number of responses");
-            }
-        }
-        // Validate required fields
+        // Validate against the form's actual fields: reject unknown keys, enforce required.
         const fields = await db.select().from(formsFieldsTable).where(eq(formsFieldsTable.formId, formId));
+        const validKeys = new Set(fields.map((f) => f.labelKey));
+        for (const key of Object.keys(data)) {
+            if (!validKeys.has(key)) throw new Error(`Unknown field "${key}"`);
+        }
         for (const field of fields) {
             if (!field.isRequired) continue;
             const v = data[field.labelKey];
             const missing = v === undefined || v === null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0);
             if (missing) throw new Error(`Field "${field.label}" is required`);
         }
-        const result = await db
-            .insert(submissionsTable)
-            .values({ formId, data })
-            .returning({ id: submissionsTable.id });
+        // Count + insert inside one transaction so concurrent submits can't exceed maxResponses (TOCTOU).
+        const maxResponses = form[0].maxResponses;
+        const result = await db.transaction(async (tx) => {
+            if (maxResponses) {
+                const countResult = await tx.select({ c: count() }).from(submissionsTable).where(eq(submissionsTable.formId, formId));
+                if ((countResult[0]?.c ?? 0) >= maxResponses) {
+                    throw new Error("This form has reached its maximum number of responses");
+                }
+            }
+            return tx
+                .insert(submissionsTable)
+                .values({ formId, data })
+                .returning({ id: submissionsTable.id });
+        });
         if (!result?.[0]) throw new Error("Failed to submit");
         return { id: result[0].id };
     }
@@ -107,7 +115,7 @@ export default class SubmissionService {
             .where(isUuid ? eq(formsTable.id, formId) : eq(formsTable.slug, formId));
         if (!form?.[0]) throw new Error("Form not found");
         if (!form[0].password) return { valid: true };
-        return { valid: form[0].password === password };
+        return { valid: await bcrypt.compare(password, form[0].password) };
     }
 
     public async getAdminStats(payload: GetAdminStatsInputType) {

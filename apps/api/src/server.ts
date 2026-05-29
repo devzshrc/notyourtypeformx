@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
 import * as trpcExpress from "@trpc/server/adapters/express";
@@ -34,6 +35,16 @@ const submitLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
+
+// Security headers. CSP is disabled because this process also serves the Scalar
+// API-reference UI at /docs (which loads its own scripts); the embeddable form
+// framing is served by the Next.js web app, not this API.
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+    }),
+);
 
 // cors config
 app.use(

@@ -6,7 +6,7 @@ import { useAcceptInvitation } from "~/hooks/api/workspace";
 import { useUser } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { CheckCircle, Users, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Users, AlertCircle, Loader2 } from "~/components/icons";
 import Link from "next/link";
 
 export default function AcceptInvitePage() {

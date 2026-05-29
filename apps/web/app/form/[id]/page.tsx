@@ -21,6 +21,16 @@ import {
     SelectValue,
 } from "~/components/ui/select";
 
+// Only follow http(s) redirects — blocks javascript:/data: URIs from a malicious form config.
+function isSafeRedirect(url: string): boolean {
+    try {
+        const proto = new URL(url, window.location.origin).protocol;
+        return proto === "http:" || proto === "https:";
+    } catch {
+        return false;
+    }
+}
+
 type FieldType =
     | "TEXT"
     | "EMAIL"
@@ -89,8 +99,9 @@ const slideVariants = {
 };
 
 export default function PublicFormPage() {
-    const params = useParams<{ id: string }>();
-    const formId = params.id;
+    // Rendered at both /form/[id] and /f/[slug]; getPublicForm accepts slug-or-uuid.
+    const params = useParams<{ id?: string; slug?: string }>();
+    const formId = params.id ?? params.slug ?? "";
 
     const { form, isLoading, error: fetchError } = useGetPublicForm(formId);
     const { submitFormAsync, isPending, isSuccess, error: submitError } = useSubmitForm();
@@ -210,11 +221,15 @@ export default function PublicFormPage() {
     if (form.hasPassword && !passwordUnlocked) {
         const handlePasswordSubmit = async () => {
             setPasswordError("");
-            const result = await verifyPasswordAsync({ formId: form.id, password: passwordInput });
-            if (result.valid) {
-                setPasswordUnlocked(true);
-            } else {
-                setPasswordError("Incorrect password");
+            try {
+                const result = await verifyPasswordAsync({ formId: form.id, password: passwordInput });
+                if (result.valid) {
+                    setPasswordUnlocked(true);
+                } else {
+                    setPasswordError("Incorrect password");
+                }
+            } catch {
+                setPasswordError("Something went wrong. Please try again.");
             }
         };
         return (
@@ -248,11 +263,11 @@ export default function PublicFormPage() {
                     transition={{ duration: 0.4 }}
                     className="max-w-lg text-center"
                 >
-                    <h1 className="text-3xl font-semibold tracking-tight">
-                        {form.endingTitle || "Thank you!"}
+                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                        {form.endingTitle ? pipe(form.endingTitle, formData) : "Thank you!"}
                     </h1>
                     <p className="mt-3 text-muted-foreground">
-                        {form.endingDescription || "Your response has been submitted."}
+                        {form.endingDescription ? pipe(form.endingDescription, formData) : "Your response has been submitted."}
                     </p>
                 </motion.div>
             </main>
@@ -288,7 +303,7 @@ export default function PublicFormPage() {
                     transition={{ duration: 0.4 }}
                     className="max-w-lg text-center"
                 >
-                    <h1 className="text-4xl font-semibold tracking-tight">{form.welcomeTitle}</h1>
+                    <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{form.welcomeTitle}</h1>
                     {form.welcomeDescription && (
                         <p className="mt-4 text-lg text-muted-foreground">{form.welcomeDescription}</p>
                     )}
@@ -374,13 +389,18 @@ export default function PublicFormPage() {
         if (next === "END" || next >= fields.length) {
             const hasScores = fields.some((f) => f.scores);
             const payload = hasScores ? { ...formData, __score: String(computeScore(formData)) } : formData;
-            await submitFormAsync({ formId: form.id, data: payload });
-            // Clear saved draft
+            try {
+                await submitFormAsync({ formId: form.id, data: payload });
+            } catch (e) {
+                setFieldError(e instanceof Error ? e.message : "Failed to submit. Please try again.");
+                return;
+            }
+            // Clear saved draft (best-effort; storage may be unavailable in private mode)
             try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
             // Confetti on success
             confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-            // Redirect if configured, otherwise show ending screen
-            if (form.redirectUrl) {
+            // Redirect if configured (only http/https), otherwise show ending screen
+            if (form.redirectUrl && isSafeRedirect(form.redirectUrl)) {
                 window.location.href = form.redirectUrl;
                 return;
             }
@@ -589,7 +609,7 @@ export default function PublicFormPage() {
                             <p className="mb-2 text-sm text-muted-foreground">
                                 {step + 1} of {fields.length}
                             </p>
-                            <label className="block text-2xl font-medium tracking-tight">
+                            <label className="block text-xl font-medium tracking-tight sm:text-2xl">
                                 {pipe(field.label, formData)}
                                 {field.isRequired && field.type !== "STATEMENT" && (
                                     <span className="ml-1 text-destructive">*</span>

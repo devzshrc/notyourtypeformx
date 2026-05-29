@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import {
     ArrowLeft, Plus, Trash2, Pencil, Copy,
     QrCode, Download, Lock, Clock, Hash, Eye, Globe,
-    ClipboardList, ExternalLink, Palette, MagicWand, GripVertical,
+    ClipboardList, ExternalLink, Palette, MagicWand, GripVertical, Loader2,
 } from "~/components/icons";
 import QRCode from "qrcode";
 import {
@@ -28,6 +28,9 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "~/components/ui/select";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { FORM_THEME_OPTIONS } from "~/lib/form-themes";
@@ -84,7 +87,9 @@ export default function FormEditorPage() {
     // Settings
     const [expiresAt, setExpiresAt] = useState("");
     const [maxResponses, setMaxResponses] = useState("");
-    const [formPassword, setFormPassword] = useState("");
+    const [formPassword, setFormPassword] = useState(""); // new password to set (never preloaded)
+    const [hasPassword, setHasPassword] = useState(false);
+    const [removePassword, setRemovePassword] = useState(false);
     const [hiddenFields, setHiddenFields] = useState<string[]>([]);
     const [redirectUrl, setRedirectUrl] = useState("");
     const [selectedTheme, setSelectedTheme] = useState("bold-tech");
@@ -106,6 +111,7 @@ export default function FormEditorPage() {
     const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
     const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
     const [fLabel, setFLabel] = useState("");
+    const fLabelRef = useRef<HTMLInputElement>(null);
     const [fType, setFType] = useState<FieldType>("TEXT");
     const [fPlaceholder, setFPlaceholder] = useState("");
     const [fRequired, setFRequired] = useState(false);
@@ -130,7 +136,9 @@ export default function FormEditorPage() {
         setEndingDescription(form.endingDescription ?? "");
         setExpiresAt(form.expiresAt ? new Date(form.expiresAt).toISOString().slice(0, 16) : "");
         setMaxResponses(form.maxResponses ? String(form.maxResponses) : "");
-        setFormPassword(form.password ?? "");
+        setHasPassword(form.hasPassword ?? false);
+        setFormPassword("");
+        setRemovePassword(false);
         setHiddenFields(form.hiddenFields ?? []);
         setRedirectUrl(form.redirectUrl ?? "");
         setSelectedTheme(form.theme ?? "bold-tech");
@@ -152,15 +160,23 @@ export default function FormEditorPage() {
     };
     const handleSaveScreens = async () => { await updateFormAsync({ formId, welcomeTitle: welcomeTitle.trim(), welcomeDescription: welcomeDescription.trim(), endingTitle: endingTitle.trim(), endingDescription: endingDescription.trim() }); toast.success("Screens saved"); };
     const handleSaveSettings = async () => {
+        // Password: only send when changed — removing, or setting a new value.
+        // Omitting leaves the existing (hashed) password untouched.
+        let password: string | null | undefined;
+        if (removePassword) password = null;
+        else if (formPassword.trim()) password = formPassword.trim();
         await updateFormAsync({
             formId,
             expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
             maxResponses: maxResponses ? parseInt(maxResponses) : null,
-            password: formPassword.trim() || null,
+            ...(password !== undefined ? { password } : {}),
             hiddenFields: hiddenFields.map((h) => h.trim()).filter(Boolean),
             redirectUrl: redirectUrl.trim() || null,
             theme: selectedTheme,
         });
+        // Reflect new state locally without exposing any value.
+        if (removePassword) { setHasPassword(false); setRemovePassword(false); }
+        else if (formPassword.trim()) { setHasPassword(true); setFormPassword(""); }
         toast.success("Settings saved");
     };
 
@@ -230,6 +246,29 @@ export default function FormEditorPage() {
     const canJump = isChoice || fType === "YES_NO";
     const jumpAnswers = fType === "YES_NO" ? ["yes", "no"] : fOptions.map((o) => o.trim()).filter(Boolean);
 
+    // Recall: only fields that come *before* this one can be referenced (their answer
+    // exists by the time this question renders). New field → every existing field.
+    const recallFields = (() => {
+        const list = fields ?? [];
+        if (!editingFieldId) return list;
+        const i = list.findIndex((f) => f.id === editingFieldId);
+        return i === -1 ? list : list.slice(0, i);
+    })();
+
+    const insertRecall = (labelKey: string) => {
+        const token = `{{${labelKey}}}`;
+        const el = fLabelRef.current;
+        if (!el) { setFLabel((p) => p + token); return; }
+        const start = el.selectionStart ?? fLabel.length;
+        const end = el.selectionEnd ?? fLabel.length;
+        setFLabel(fLabel.slice(0, start) + token + fLabel.slice(end));
+        requestAnimationFrame(() => {
+            el.focus();
+            const pos = start + token.length;
+            el.setSelectionRange(pos, pos);
+        });
+    };
+
     return (
         <div className="px-6 py-8">
             <div className="mx-auto max-w-4xl space-y-6">
@@ -252,8 +291,8 @@ export default function FormEditorPage() {
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Link href={`/form/${form?.slug ?? formId}`} target="_blank"><Button variant="outline" size="sm"><Eye className="mr-1 size-4" /> Preview</Button></Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Link href={`/form/${form?.slug ?? formId}`} target="_blank"><Button variant="outline" size="sm" aria-label="Preview"><Eye className="size-4 sm:mr-1" /> <span className="hidden sm:inline">Preview</span></Button></Link>
                         <Button size="sm" onClick={handlePublishToggle} disabled={savingForm} variant={isPublished ? "secondary" : "default"}>
                             {isPublished ? "Unpublish" : "Publish"}
                         </Button>
@@ -262,7 +301,7 @@ export default function FormEditorPage() {
 
                 {/* Tabbed content */}
                 <Tabs defaultValue="build" className="w-full">
-                    <TabsList className="w-full justify-start">
+                    <TabsList className="w-full justify-start overflow-x-auto">
                         <TabsTrigger value="build">Build</TabsTrigger>
                         <TabsTrigger value="themes">Themes</TabsTrigger>
                         <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -321,7 +360,7 @@ export default function FormEditorPage() {
                                         className={cn(
                                             "group flex items-center gap-3 rounded-lg border border-border bg-card p-4 hover:shadow-sm transition-all",
                                             dragIdx === idx && "opacity-50",
-                                            dragOverIdx === idx && dragIdx !== idx && "border-primary border-dashed"
+                                            dragOverIdx === idx && dragIdx !== idx && "border-primary border-dashed bg-primary/5"
                                         )}
                                     >
                                         <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
@@ -357,7 +396,7 @@ export default function FormEditorPage() {
                                         </div>
                                         <div className="flex gap-1 opacity-70 transition-opacity group-hover:opacity-100">
                                             <Button
-                                                variant="ghost" size="icon" className="size-8 text-violet-500 hover:text-violet-600"
+                                                variant="ghost" size="icon" className="size-8 text-primary hover:text-primary/80"
                                                 title="Improve with AI"
                                                 disabled={improvingField && improvingFieldId === field.id}
                                                 onClick={async () => {
@@ -374,8 +413,8 @@ export default function FormEditorPage() {
                                                     : <MagicWand className="size-3.5" />}
                                             </Button>
                                             <Button variant="ghost" size="icon" className="size-8" title="Duplicate field" onClick={() => copyField(field)}><Copy className="size-3.5" /></Button>
-                                            <Button variant="ghost" size="icon" className="size-8" onClick={() => openEditDialog(field)}><Pencil className="size-3.5" /></Button>
-                                            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" onClick={() => deleteFieldAsync({ fieldId: field.id, formId })}><Trash2 className="size-3.5" /></Button>
+                                            <Button variant="ghost" size="icon" className="size-8" title="Edit field" aria-label="Edit field" onClick={() => openEditDialog(field)}><Pencil className="size-3.5" /></Button>
+                                            <Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" title="Delete field" aria-label="Delete field" onClick={() => deleteFieldAsync({ fieldId: field.id, formId })}><Trash2 className="size-3.5" /></Button>
                                         </div>
                                     </motion.div>
                                     </motion.div>
@@ -418,7 +457,7 @@ export default function FormEditorPage() {
                                     </div>
                                 </div>
                             </div>
-                            <Button className="mt-4" size="sm" onClick={handleSaveScreens} disabled={savingForm}>{savingForm ? "Saving..." : "Save Screens"}</Button>
+                            <Button className="mt-4 gap-1.5" size="sm" onClick={handleSaveScreens} disabled={savingForm}>{savingForm ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : "Save Screens"}</Button>
                         </div>
                     </motion.div>
                     </TabsContent>
@@ -496,8 +535,15 @@ export default function FormEditorPage() {
                             <div className="grid gap-6 sm:grid-cols-2">
                                 <div className="space-y-2">
                                     <Label htmlFor="set-password" className="flex items-center gap-2"><Lock className="size-4" /> Password Protection</Label>
-                                    <Input id="set-password" type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} placeholder="Leave empty for no password" />
-                                    <p className="text-xs text-muted-foreground">Respondents must enter this password before filling the form</p>
+                                    {hasPassword && !removePassword ? (
+                                        <div className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2">
+                                            <span className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-500"><Lock className="size-3.5" /> Password protected</span>
+                                            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => { setRemovePassword(true); setFormPassword(""); }}>Remove</Button>
+                                        </div>
+                                    ) : (
+                                        <Input id="set-password" type="password" autoComplete="new-password" value={formPassword} onChange={(e) => { setFormPassword(e.target.value); setRemovePassword(false); }} placeholder={hasPassword ? "Removed — save to confirm" : "Set a password"} />
+                                    )}
+                                    <p className="text-xs text-muted-foreground">{hasPassword && !removePassword ? "Respondents must enter this password. Type to change it, or remove it." : "Respondents must enter this password before filling the form"}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="set-max" className="flex items-center gap-2"><Hash className="size-4" /> Response Limit</Label>
@@ -535,7 +581,7 @@ export default function FormEditorPage() {
                             </div>
                         </div>
 
-                        <Button onClick={handleSaveSettings} disabled={savingForm}>{savingForm ? "Saving..." : "Save All Settings"}</Button>
+                        <Button onClick={handleSaveSettings} disabled={savingForm} className="gap-1.5">{savingForm ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : "Save All Settings"}</Button>
                     </motion.div>
                     </TabsContent>
 
@@ -619,8 +665,27 @@ export default function FormEditorPage() {
                     <form className="space-y-5" onSubmit={handleSubmitField}>
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="f-label">Label</Label>
-                                <Input id="f-label" value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder="e.g. Full Name" />
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="f-label">Label</Label>
+                                    {recallFields.length > 0 && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button type="button" variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs text-muted-foreground hover:text-foreground">
+                                                    <MagicWand className="size-3" /> Recall
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="max-h-64 w-56 overflow-y-auto">
+                                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Insert a previous answer</DropdownMenuLabel>
+                                                {recallFields.map((f) => (
+                                                    <DropdownMenuItem key={f.id} onSelect={() => insertRecall(f.labelKey)}>
+                                                        <span className="truncate">{f.label || "Untitled"}</span>
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </div>
+                                <Input ref={fLabelRef} id="f-label" value={fLabel} onChange={(e) => setFLabel(e.target.value)} placeholder="e.g. Full Name" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="f-type">Type</Label>
@@ -673,7 +738,7 @@ export default function FormEditorPage() {
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => setFieldDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={addingField || updatingField || !fLabel.trim()}>{addingField || updatingField ? "Saving..." : editingFieldId ? "Update" : "Add Field"}</Button>
+                            <Button type="submit" disabled={addingField || updatingField || !fLabel.trim()} className="gap-1.5">{addingField || updatingField ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : editingFieldId ? "Update" : "Add Field"}</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

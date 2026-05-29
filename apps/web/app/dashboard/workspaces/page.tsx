@@ -8,12 +8,13 @@ import { useListWorkspaceForms } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "~/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "~/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
-import { Plus, Users, Trash2, Copy, CheckCircle, Link as LinkIcon, LogOut, AlertCircle, FileText, Settings, ArrowLeft, PencilLine, Eye, Shield, Crown, Edit3, EyeIcon } from "lucide-react";
+import { Plus, Users, Trash2, Copy, CheckCircle, Link as LinkIcon, LogOut, AlertCircle, FileText, Settings, ArrowLeft, PencilLine, Eye, Shield, Crown, Edit3, EyeIcon, Loader2 } from "~/components/icons";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -25,14 +26,14 @@ function canManageMembers(role: string) { return role === "OWNER" || role === "A
 
 function roleIcon(role: string) {
     if (role === "OWNER") return <Crown className="size-3 text-amber-500" />;
-    if (role === "ADMIN") return <Shield className="size-3 text-blue-500" />;
+    if (role === "ADMIN") return <Shield className="size-3 text-teal-500" />;
     if (role === "EDITOR") return <Edit3 className="size-3 text-green-500" />;
     return <EyeIcon className="size-3 text-muted-foreground" />;
 }
 
 function roleColor(role: string) {
     if (role === "OWNER") return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-    if (role === "ADMIN") return "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20";
+    if (role === "ADMIN") return "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20";
     if (role === "EDITOR") return "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20";
     return "bg-muted text-muted-foreground border-border";
 }
@@ -74,11 +75,11 @@ export default function WorkspacesPage() {
 
     if (isLoading) {
         return (
-            <div className="p-6 md:p-8 max-w-4xl mx-auto">
-                <div className="space-y-4">
-                    <div className="h-8 w-40 rounded-lg bg-muted/60 animate-pulse" />
+            <div className="px-6 py-8">
+                <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+                    <Skeleton className="h-8 w-40" />
                     <div className="grid gap-4 sm:grid-cols-2">
-                        {[1, 2].map((i) => <div key={i} className="h-32 rounded-xl bg-muted/40 animate-pulse" />)}
+                        {[1, 2].map((i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
                     </div>
                 </div>
             </div>
@@ -99,7 +100,8 @@ export default function WorkspacesPage() {
     }
 
     return (
-        <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+        <div className="px-6 py-8">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Workspaces</h1>
@@ -124,7 +126,7 @@ export default function WorkspacesPage() {
                                 )}
                             </div>
                             <ErrorMessage error={createError} />
-                            <Button onClick={handleCreate} disabled={creating || name.trim().length < 1} className="w-full">{creating ? "Creating..." : "Create Workspace"}</Button>
+                            <Button onClick={handleCreate} disabled={creating || name.trim().length < 1} className="w-full gap-1.5">{creating ? <><Loader2 className="size-4 animate-spin" /> Creating…</> : "Create Workspace"}</Button>
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -144,6 +146,7 @@ export default function WorkspacesPage() {
                     <Button size="sm" className="mt-4 gap-1.5" onClick={() => setCreateOpen(true)}><Plus className="size-4" /> Create your first workspace</Button>
                 </div>
             )}
+            </div>
         </div>
     );
 }
@@ -222,7 +225,8 @@ function WorkspaceDetail({ workspace, onBack, onDelete, onLeave, deleting, leavi
     const { forms } = useListWorkspaceForms(workspace.id);
 
     return (
-        <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+        <div className="px-6 py-8">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
             {/* Header */}
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" className="size-9 shrink-0" onClick={onBack}>
@@ -261,6 +265,7 @@ function WorkspaceDetail({ workspace, onBack, onDelete, onLeave, deleting, leavi
                 <TabsContent value="members"><WorkspaceMembers workspaceId={workspace.id} role={workspace.role} /></TabsContent>
                 {isOwnerOrAdmin && <TabsContent value="settings"><WorkspaceSettings workspace={workspace} onDelete={onDelete} onLeave={onLeave} deleting={deleting} leaving={leaving} /></TabsContent>}
             </Tabs>
+            </div>
         </div>
     );
 }
@@ -356,7 +361,7 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
             {/* Permission legend */}
             <div className="flex flex-wrap gap-3 rounded-lg bg-muted/30 px-4 py-2.5">
                 <span className="flex items-center gap-1.5 text-xs"><Crown className="size-3 text-amber-500" />Owner — Full control</span>
-                <span className="flex items-center gap-1.5 text-xs"><Shield className="size-3 text-blue-500" />Admin — Manage members</span>
+                <span className="flex items-center gap-1.5 text-xs"><Shield className="size-3 text-teal-500" />Admin — Manage members</span>
                 <span className="flex items-center gap-1.5 text-xs"><Edit3 className="size-3 text-green-500" />Editor — Edit forms</span>
                 <span className="flex items-center gap-1.5 text-xs"><EyeIcon className="size-3 text-muted-foreground" />Viewer — View only</span>
             </div>
@@ -375,7 +380,7 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
                                 <SelectItem value="VIEWER">Viewer</SelectItem>
                             </SelectContent>
                         </Select>
-                        <Button onClick={handleInvite} disabled={inviting || !email.trim()} size="sm" className="h-9 px-4">{inviting ? "Sending..." : "Invite"}</Button>
+                        <Button onClick={handleInvite} disabled={inviting || !email.trim()} size="sm" className="h-9 gap-1.5 px-4">{inviting ? <><Loader2 className="size-4 animate-spin" /> Sending…</> : "Invite"}</Button>
                     </div>
                     {localError && <ErrorMessage error={{ message: localError }} />}
                     {lastInviteToken && <InviteLinkDisplay token={lastInviteToken} />}
@@ -404,7 +409,7 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
                                     <Select value={m.role} onValueChange={(v) => updateMemberRoleAsync({ workspaceId, memberId: m.id, role: v as "ADMIN" | "EDITOR" | "VIEWER" })}>
                                         <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ADMIN"><span className="flex items-center gap-1.5"><Shield className="size-3 text-blue-500" />Admin</span></SelectItem>
+                                            <SelectItem value="ADMIN"><span className="flex items-center gap-1.5"><Shield className="size-3 text-teal-500" />Admin</span></SelectItem>
                                             <SelectItem value="EDITOR"><span className="flex items-center gap-1.5"><Edit3 className="size-3 text-green-500" />Editor</span></SelectItem>
                                             <SelectItem value="VIEWER"><span className="flex items-center gap-1.5"><EyeIcon className="size-3 text-muted-foreground" />Viewer</span></SelectItem>
                                         </SelectContent>
@@ -470,7 +475,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                     <label className="text-xs font-medium text-muted-foreground">Workspace Name</label>
                     <div className="flex gap-2">
                         <Input value={wsName} onChange={(e) => setWsName(e.target.value)} className="h-9" onKeyDown={(e) => e.key === "Enter" && handleSave()} />
-                        <Button onClick={handleSave} disabled={updating || wsName.trim() === workspace.name} size="sm" className="h-9 px-4">{updating ? "Saving..." : "Save"}</Button>
+                        <Button onClick={handleSave} disabled={updating || wsName.trim() === workspace.name} size="sm" className="h-9 gap-1.5 px-4">{updating ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : "Save"}</Button>
                     </div>
                     {updateError && <ErrorMessage error={updateError} />}
                 </div>
@@ -500,7 +505,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={onDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{deleting ? "Deleting..." : "Delete Workspace"}</AlertDialogAction>
+                                        <AlertDialogAction onClick={onDelete} disabled={deleting} className="gap-1.5 bg-destructive text-destructive-foreground hover:bg-destructive/90">{deleting ? <><Loader2 className="size-4 animate-spin" /> Deleting…</> : "Delete Workspace"}</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
@@ -522,7 +527,7 @@ function WorkspaceSettings({ workspace, onDelete, onLeave, deleting, leaving }: 
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={onLeave} disabled={leaving}>{leaving ? "Leaving..." : "Leave Workspace"}</AlertDialogAction>
+                                        <AlertDialogAction onClick={onLeave} disabled={leaving} className="gap-1.5">{leaving ? <><Loader2 className="size-4 animate-spin" /> Leaving…</> : "Leave Workspace"}</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>

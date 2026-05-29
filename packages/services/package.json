@@ -18,6 +18,8 @@
     "./workspace/model": "./workspace/model.ts",
     "./template": "./template/index.ts",
     "./template/model": "./template/model.ts",
+    "./common/utils": "./common/utils.ts",
+    "./common/access": "./common/access.ts",
     "./env": "./env.ts"
   },
   "devDependencies": {
