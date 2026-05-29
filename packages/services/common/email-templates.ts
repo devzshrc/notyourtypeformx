@@ -55,11 +55,11 @@ export function inviteEmail(p: { url: string; role: string; workspaceName: strin
 export function welcomeEmail(p: { name: string; url: string }): { subject: string; html: string } {
     const first = p.name.split(" ")[0] || "there";
     return {
-        subject: "Welcome to Schema",
+        subject: "You're in ✨ Welcome to Schema",
         html: shell({
-            heading: `Welcome, ${first} 👋`,
-            body: `You're all set. Schema turns one sentence into a complete, conversational form — questions, validation, logic, and theme included. Describe your first form and watch it build.`,
-            cta: { label: "Build your first form", url: p.url },
+            heading: `Hey ${first} 🎉`,
+            body: `You just made my day (and my server logs) 🥹<br><br>Schema turns one sentence into a full form — questions, validation, logic, themes, the whole shebang. No drag-and-drop suffering required.<br><br>Go ahead, describe something wild. I dare you. 🪄<br><br>— Devashish 🫡<br><span style="font-size:12px;color:${MUTED};">founder, chief form whisperer</span>`,
+            cta: { label: "Build your first form 🚀", url: p.url },
         }),
     };
 }
