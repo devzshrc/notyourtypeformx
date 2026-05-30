@@ -156,6 +156,51 @@ export default function ResponsesPage() {
                     </StaggerList>
                 )}
 
+                {/* Conversion funnel */}
+                {analytics && analytics.views > 0 && (
+                    <div className="rounded-lg border border-border bg-card p-4">
+                        <p className="mb-4 text-sm font-medium">Conversion funnel</p>
+                        <div className="flex flex-col gap-3">
+                            {(() => {
+                                const stages = [
+                                    { label: "Views", value: analytics.views },
+                                    { label: "Starts", value: analytics.starts },
+                                    { label: "Responses", value: analytics.submissions },
+                                ];
+                                const top = analytics.views || 1;
+                                return stages.map((s, i) => {
+                                    const prev = i === 0 ? s.value : stages[i - 1]!.value;
+                                    // Drop-off relative to the previous stage (guard divide-by-zero).
+                                    const dropPct = i === 0 || prev === 0 ? 0 : Math.round(((prev - s.value) / prev) * 100);
+                                    const widthPct = Math.round((s.value / top) * 100);
+                                    return (
+                                        <div key={s.label}>
+                                            <div className="mb-1 flex items-center justify-between text-xs">
+                                                <span className="font-medium text-foreground">{s.label}</span>
+                                                <span className="text-muted-foreground">
+                                                    {s.value}
+                                                    {i > 0 && dropPct > 0 && (
+                                                        <span className="ml-2 text-destructive">−{dropPct}%</span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="h-7 overflow-hidden rounded-md bg-muted">
+                                                <motion.div
+                                                    className="h-full rounded-md bg-primary"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${widthPct}%` }}
+                                                    transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.1 }}
+                                                    style={WC_TRANSFORM}
+                                                />
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </div>
+                )}
+
                 {/* Time-series chart */}
                 {timeSeries && timeSeries.length > 0 && (
                     <div className="rounded-lg border border-border bg-card p-4">
@@ -198,9 +243,18 @@ export default function ResponsesPage() {
                     <div className="grid gap-3 sm:grid-cols-2">
                         {summaries.map(({ field, tally }) => {
                             const t = Object.values(tally).reduce((a, b) => a + b, 0) || 1;
+                            // For RATING fields, surface the weighted average alongside the distribution.
+                            const ratingAvg = field.type === "RATING"
+                                ? (Object.entries(tally).reduce((sum, [k, n]) => sum + Number(k) * n, 0) / t)
+                                : null;
                             return (
                                 <div key={field.id} className="rounded-lg border border-border bg-card p-4">
-                                    <p className="mb-3 text-sm font-medium">{field.label}</p>
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <p className="text-sm font-medium">{field.label}</p>
+                                        {ratingAvg != null && Number.isFinite(ratingAvg) && (
+                                            <span className="text-xs text-muted-foreground">avg <span className="font-semibold text-foreground">{ratingAvg.toFixed(1)}</span></span>
+                                        )}
+                                    </div>
                                     <div className="flex flex-col gap-2">
                                         {Object.entries(tally).map(([opt, n]) => (
                                             <div key={opt}>

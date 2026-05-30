@@ -54,6 +54,7 @@ export const submissionRouter = router({
                 endingDescription: form[0].endingDescription,
                 theme: form[0].theme,
                 redirectUrl: form[0].redirectUrl,
+                closedMessage: form[0].closedMessage,
                 fields: fields.map((f) => ({
                     ...f,
                     options: options.filter((o) => o.fieldId === f.id).map((o) => o.label),

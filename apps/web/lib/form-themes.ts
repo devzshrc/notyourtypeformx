@@ -1,4 +1,12 @@
-export type FormTheme = "minimal" | "northern-lights" | "sunset-warm" | "death-note";
+export type FormTheme =
+    | "minimal"
+    | "northern-lights"
+    | "sunset-warm"
+    | "death-note"
+    | "corporate"
+    | "pastel"
+    | "high-contrast"
+    | "neon";
 
 export type FormThemeOption = {
     value: FormTheme;
@@ -12,7 +20,17 @@ export const FORM_THEME_OPTIONS: FormThemeOption[] = [
     { value: "northern-lights", label: "Northern Lights", description: "Green & purple aurora", primaryColor: "oklch(0.6487 0.1538 150.3071)" },
     { value: "sunset-warm", label: "Sunset Warm", description: "Warm amber & coral", primaryColor: "oklch(0.6500 0.1800 45.0000)" },
     { value: "death-note", label: "Death Note", description: "Dark gothic anime", primaryColor: "oklch(0.4500 0.1200 15.0000)" },
+    { value: "corporate", label: "Corporate", description: "Professional blue", primaryColor: "oklch(0.5500 0.1600 255.0000)" },
+    { value: "pastel", label: "Pastel", description: "Soft lavender & pink", primaryColor: "oklch(0.6800 0.1100 320.0000)" },
+    { value: "high-contrast", label: "High Contrast", description: "Max readability (AA+)", primaryColor: "oklch(0.2000 0 0)" },
+    { value: "neon", label: "Neon", description: "Cyber dark & cyan", primaryColor: "oklch(0.7800 0.1700 195.0000)" },
 ];
+
+/** CSS-var map for a theme in the given mode, with a safe fallback to minimal. */
+export function themeVarsFor(theme: string, isDark: boolean): Record<string, string> {
+    const map = isDark ? formThemesDark : formThemesLight;
+    return map[theme as FormTheme] ?? map.minimal;
+}
 
 export function getThemeBackgroundImage(_theme: FormTheme): string {
     return "";
@@ -91,6 +109,78 @@ export const formThemesLight: Record<FormTheme, Record<string, string>> = {
         "--ring": "oklch(0.4500 0.1200 15.0000)",
         "--radius": "0.125rem",
     },
+    "corporate": {
+        "--background": "oklch(0.9850 0.0030 255.0000)",
+        "--foreground": "oklch(0.2200 0.0200 255.0000)",
+        "--card": "oklch(1.0000 0 0)",
+        "--card-foreground": "oklch(0.2200 0.0200 255.0000)",
+        "--primary": "oklch(0.5500 0.1600 255.0000)",
+        "--primary-foreground": "oklch(1.0000 0 0)",
+        "--secondary": "oklch(0.9200 0.0200 255.0000)",
+        "--secondary-foreground": "oklch(0.3000 0.0300 255.0000)",
+        "--muted": "oklch(0.9400 0.0100 255.0000)",
+        "--muted-foreground": "oklch(0.5200 0.0200 255.0000)",
+        "--accent": "oklch(0.8800 0.0400 255.0000)",
+        "--accent-foreground": "oklch(0.2500 0.0300 255.0000)",
+        "--border": "oklch(0.8900 0.0100 255.0000)",
+        "--input": "oklch(0.8900 0.0100 255.0000)",
+        "--ring": "oklch(0.5500 0.1600 255.0000)",
+        "--radius": "0.375rem",
+    },
+    "pastel": {
+        "--background": "oklch(0.9880 0.0080 330.0000)",
+        "--foreground": "oklch(0.3200 0.0300 320.0000)",
+        "--card": "oklch(1.0000 0 0)",
+        "--card-foreground": "oklch(0.3200 0.0300 320.0000)",
+        "--primary": "oklch(0.6800 0.1100 320.0000)",
+        "--primary-foreground": "oklch(1.0000 0 0)",
+        "--secondary": "oklch(0.8800 0.0600 280.0000)",
+        "--secondary-foreground": "oklch(0.3500 0.0400 300.0000)",
+        "--muted": "oklch(0.9500 0.0200 320.0000)",
+        "--muted-foreground": "oklch(0.5500 0.0300 320.0000)",
+        "--accent": "oklch(0.9000 0.0500 200.0000)",
+        "--accent-foreground": "oklch(0.3200 0.0300 320.0000)",
+        "--border": "oklch(0.9000 0.0300 320.0000)",
+        "--input": "oklch(0.9000 0.0300 320.0000)",
+        "--ring": "oklch(0.6800 0.1100 320.0000)",
+        "--radius": "1rem",
+    },
+    "high-contrast": {
+        "--background": "oklch(1.0000 0 0)",
+        "--foreground": "oklch(0.1000 0 0)",
+        "--card": "oklch(1.0000 0 0)",
+        "--card-foreground": "oklch(0.1000 0 0)",
+        "--primary": "oklch(0.2000 0 0)",
+        "--primary-foreground": "oklch(1.0000 0 0)",
+        "--secondary": "oklch(0.9000 0 0)",
+        "--secondary-foreground": "oklch(0.1000 0 0)",
+        "--muted": "oklch(0.9200 0 0)",
+        "--muted-foreground": "oklch(0.3500 0 0)",
+        "--accent": "oklch(0.8500 0 0)",
+        "--accent-foreground": "oklch(0.1000 0 0)",
+        "--border": "oklch(0.2000 0 0)",
+        "--input": "oklch(0.4000 0 0)",
+        "--ring": "oklch(0.1000 0 0)",
+        "--radius": "0.25rem",
+    },
+    "neon": {
+        "--background": "oklch(0.2000 0.0300 260.0000)",
+        "--foreground": "oklch(0.9500 0.0200 195.0000)",
+        "--card": "oklch(0.2500 0.0350 260.0000)",
+        "--card-foreground": "oklch(0.9500 0.0200 195.0000)",
+        "--primary": "oklch(0.7800 0.1700 195.0000)",
+        "--primary-foreground": "oklch(0.1800 0.0300 260.0000)",
+        "--secondary": "oklch(0.6500 0.2200 330.0000)",
+        "--secondary-foreground": "oklch(0.9800 0 0)",
+        "--muted": "oklch(0.3000 0.0350 260.0000)",
+        "--muted-foreground": "oklch(0.7000 0.0300 220.0000)",
+        "--accent": "oklch(0.6500 0.2200 330.0000)",
+        "--accent-foreground": "oklch(0.9800 0 0)",
+        "--border": "oklch(0.4000 0.0500 260.0000)",
+        "--input": "oklch(0.4000 0.0500 260.0000)",
+        "--ring": "oklch(0.7800 0.1700 195.0000)",
+        "--radius": "0.5rem",
+    },
 };
 
 export const formThemesDark: Record<FormTheme, Record<string, string>> = {
@@ -165,5 +255,77 @@ export const formThemesDark: Record<FormTheme, Record<string, string>> = {
         "--input": "oklch(0.3000 0.0050 0.0000)",
         "--ring": "oklch(0.5000 0.1500 15.0000)",
         "--radius": "0.125rem",
+    },
+    "corporate": {
+        "--background": "oklch(0.2100 0.0250 255.0000)",
+        "--foreground": "oklch(0.9200 0.0100 255.0000)",
+        "--card": "oklch(0.2600 0.0300 255.0000)",
+        "--card-foreground": "oklch(0.9200 0.0100 255.0000)",
+        "--primary": "oklch(0.6500 0.1600 255.0000)",
+        "--primary-foreground": "oklch(1.0000 0 0)",
+        "--secondary": "oklch(0.3500 0.0400 255.0000)",
+        "--secondary-foreground": "oklch(0.9200 0.0100 255.0000)",
+        "--muted": "oklch(0.3200 0.0300 255.0000)",
+        "--muted-foreground": "oklch(0.7000 0.0200 255.0000)",
+        "--accent": "oklch(0.4000 0.0600 255.0000)",
+        "--accent-foreground": "oklch(0.9200 0.0100 255.0000)",
+        "--border": "oklch(0.3500 0.0300 255.0000)",
+        "--input": "oklch(0.3500 0.0300 255.0000)",
+        "--ring": "oklch(0.6500 0.1600 255.0000)",
+        "--radius": "0.375rem",
+    },
+    "pastel": {
+        "--background": "oklch(0.2400 0.0250 320.0000)",
+        "--foreground": "oklch(0.9300 0.0200 320.0000)",
+        "--card": "oklch(0.2900 0.0300 320.0000)",
+        "--card-foreground": "oklch(0.9300 0.0200 320.0000)",
+        "--primary": "oklch(0.7400 0.1100 320.0000)",
+        "--primary-foreground": "oklch(0.2000 0.0200 320.0000)",
+        "--secondary": "oklch(0.5000 0.0800 280.0000)",
+        "--secondary-foreground": "oklch(0.9500 0 0)",
+        "--muted": "oklch(0.3200 0.0250 320.0000)",
+        "--muted-foreground": "oklch(0.7200 0.0300 320.0000)",
+        "--accent": "oklch(0.5500 0.0700 200.0000)",
+        "--accent-foreground": "oklch(0.9500 0 0)",
+        "--border": "oklch(0.3800 0.0300 320.0000)",
+        "--input": "oklch(0.3800 0.0300 320.0000)",
+        "--ring": "oklch(0.7400 0.1100 320.0000)",
+        "--radius": "1rem",
+    },
+    "high-contrast": {
+        "--background": "oklch(0.0000 0 0)",
+        "--foreground": "oklch(1.0000 0 0)",
+        "--card": "oklch(0.0800 0 0)",
+        "--card-foreground": "oklch(1.0000 0 0)",
+        "--primary": "oklch(1.0000 0 0)",
+        "--primary-foreground": "oklch(0.0000 0 0)",
+        "--secondary": "oklch(0.2000 0 0)",
+        "--secondary-foreground": "oklch(1.0000 0 0)",
+        "--muted": "oklch(0.1800 0 0)",
+        "--muted-foreground": "oklch(0.7500 0 0)",
+        "--accent": "oklch(0.2500 0 0)",
+        "--accent-foreground": "oklch(1.0000 0 0)",
+        "--border": "oklch(1.0000 0 0)",
+        "--input": "oklch(0.6000 0 0)",
+        "--ring": "oklch(1.0000 0 0)",
+        "--radius": "0.25rem",
+    },
+    "neon": {
+        "--background": "oklch(0.1500 0.0300 260.0000)",
+        "--foreground": "oklch(0.9500 0.0200 195.0000)",
+        "--card": "oklch(0.2000 0.0350 260.0000)",
+        "--card-foreground": "oklch(0.9500 0.0200 195.0000)",
+        "--primary": "oklch(0.8200 0.1700 195.0000)",
+        "--primary-foreground": "oklch(0.1500 0.0300 260.0000)",
+        "--secondary": "oklch(0.7000 0.2200 330.0000)",
+        "--secondary-foreground": "oklch(0.1500 0.0300 260.0000)",
+        "--muted": "oklch(0.2600 0.0350 260.0000)",
+        "--muted-foreground": "oklch(0.7200 0.0300 220.0000)",
+        "--accent": "oklch(0.7000 0.2200 330.0000)",
+        "--accent-foreground": "oklch(0.1500 0.0300 260.0000)",
+        "--border": "oklch(0.3500 0.0500 260.0000)",
+        "--input": "oklch(0.3500 0.0500 260.0000)",
+        "--ring": "oklch(0.8200 0.1700 195.0000)",
+        "--radius": "0.5rem",
     },
 };

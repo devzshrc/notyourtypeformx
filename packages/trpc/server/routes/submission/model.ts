@@ -55,6 +55,7 @@ export const getPublicFormOutputModel = z.object({
     endingDescription: z.string().nullable().optional(),
     theme: z.string().nullable().optional(),
     redirectUrl: z.string().nullable().optional(),
+    closedMessage: z.string().nullable().optional(),
     fields: z.array(
         z.object({
             id: z.string(),
@@ -71,6 +72,13 @@ export const getPublicFormOutputModel = z.object({
             options: z.array(z.string()),
             logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).nullable(),
             scores: z.record(z.string(), z.number()).nullable(),
+            validation: z.object({
+                minLength: z.number().optional(),
+                maxLength: z.number().optional(),
+                min: z.number().optional(),
+                max: z.number().optional(),
+                pattern: z.string().optional(),
+            }).nullable(),
         }),
     ),
 });

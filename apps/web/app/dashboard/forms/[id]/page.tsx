@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -13,7 +13,7 @@ import QRCode from "qrcode";
 import {
     useGetForm, useUpdateForm, useListFields,
     useAddField, useUpdateField, useDeleteField, useReorderFields,
-    useGetAnalytics, useImproveField,
+    useGetAnalytics, useImproveField, useUpdateSlug, useDeleteForm,
 } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -33,7 +33,13 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "~/components/ui/alert-dialog";
 import { FORM_THEME_OPTIONS } from "~/lib/form-themes";
+import { ThemePreview } from "~/components/theme-preview";
+import { useTheme } from "next-themes";
 import { cn } from "~/lib/utils";
 import { motion, AnimatePresence, type Variants } from "~/components/motion";
 import type { CSSProperties } from "react";
@@ -72,6 +78,9 @@ export default function FormEditorPage() {
     const { reorderFieldsAsync } = useReorderFields();
     const { analytics } = useGetAnalytics(formId, { refetchInterval: 5000 });
     const { improveFieldAsync, isPending: improvingField, improvingFieldId } = useImproveField(formId);
+    const { updateSlugAsync, isPending: savingSlug } = useUpdateSlug();
+    const { deleteFormAsync, isPending: deletingForm } = useDeleteForm();
+    const router = useRouter();
 
     // Form meta
     const [editTitle, setEditTitle] = useState("");
@@ -92,20 +101,43 @@ export default function FormEditorPage() {
     const [removePassword, setRemovePassword] = useState(false);
     const [hiddenFields, setHiddenFields] = useState<string[]>([]);
     const [redirectUrl, setRedirectUrl] = useState("");
+    const [notifyEmail, setNotifyEmail] = useState("");
+    const [webhookUrl, setWebhookUrl] = useState("");
+    const [closedMessage, setClosedMessage] = useState("");
     const [selectedTheme, setSelectedTheme] = useState("bold-tech");
+    const [slugInput, setSlugInput] = useState("");
+    const [hoverTheme, setHoverTheme] = useState<string | null>(null);
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === "dark";
 
     // QR — use callback ref so generation fires when canvas actually mounts in DOM (Share tab lazy-renders)
     const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const [qrGenerated, setQrGenerated] = useState(false);
+    const [qrFg, setQrFg] = useState("#000000");
+    const [qrBg, setQrBg] = useState("#ffffff");
     const qrCallbackRef = useCallback((canvas: HTMLCanvasElement | null) => {
         qrCanvasRef.current = canvas;
         if (!canvas || !form?.status) return;
         if (form.status === "PUBLISHED") {
             const url = `${window.location.origin}/form/${form.slug ?? formId}`;
-            QRCode.toCanvas(canvas, url, { width: 160, margin: 2 }, () => setQrGenerated(true));
+            QRCode.toCanvas(canvas, url, { width: 160, margin: 2, color: { dark: qrFg, light: qrBg } }, () => setQrGenerated(true));
         }
-     
+        // qrFg/qrBg intentionally excluded — color changes are handled by the regen effect below.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form?.status, form?.slug, formId]);
+
+    // Redraw QR when colors change (callback ref only fires on mount).
+    useEffect(() => {
+        const canvas = qrCanvasRef.current;
+        if (!canvas || form?.status !== "PUBLISHED") return;
+        const url = `${window.location.origin}/form/${form.slug ?? formId}`;
+        QRCode.toCanvas(canvas, url, { width: 160, margin: 2, color: { dark: qrFg, light: qrBg } });
+    }, [qrFg, qrBg, form?.status, form?.slug, formId]);
+
+    // Embed config (live snippet builder)
+    const [embedType, setEmbedType] = useState<"iframe" | "script">("iframe");
+    const [embedWidth, setEmbedWidth] = useState("100%");
+    const [embedHeight, setEmbedHeight] = useState("600");
 
     // Field dialog
     const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
@@ -114,14 +146,19 @@ export default function FormEditorPage() {
     const fLabelRef = useRef<HTMLInputElement>(null);
     const [fType, setFType] = useState<FieldType>("TEXT");
     const [fPlaceholder, setFPlaceholder] = useState("");
+    const [fDescription, setFDescription] = useState("");
     const [fRequired, setFRequired] = useState(false);
     const [fOptions, setFOptions] = useState<string[]>([]);
     const [fLogic, setFLogic] = useState<Record<string, string>>({});
     const [fScores, setFScores] = useState<Record<string, number>>({});
+    const [fValidation, setFValidation] = useState<{ minLength?: number; maxLength?: number; min?: number; max?: number; pattern?: string }>({});
 
     // Inline label edit
     const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
     const [editingLabelValue, setEditingLabelValue] = useState("");
+
+    // Field search (build tab)
+    const [fieldSearch, setFieldSearch] = useState("");
 
     // Bulk import dialog
     const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -141,14 +178,55 @@ export default function FormEditorPage() {
         setRemovePassword(false);
         setHiddenFields(form.hiddenFields ?? []);
         setRedirectUrl(form.redirectUrl ?? "");
+        setNotifyEmail(form.notifyEmail ?? "");
+        setWebhookUrl(form.webhookUrl ?? "");
+        setClosedMessage(form.closedMessage ?? "");
         setSelectedTheme(form.theme ?? "bold-tech");
+        setSlugInput(form.slug ?? "");
     }, [form]);
+
+    const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    const slugValid = slugInput.length >= 3 && slugInput.length <= 80 && SLUG_RE.test(slugInput);
+    const handleUpdateSlug = async () => {
+        if (!slugValid) { toast.error("Slug must be 3–80 chars: lowercase letters, numbers, hyphens"); return; }
+        try {
+            await updateSlugAsync({ formId, slug: slugInput });
+            toast.success("Link updated");
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : "That slug is taken");
+        }
+    };
+    const handleDeleteForm = async () => {
+        try {
+            await deleteFormAsync({ formId });
+            toast.success("Form deleted");
+            router.push("/dashboard/forms");
+        } catch {
+            toast.error("Couldn't delete form");
+        }
+    };
 
 
     // Handlers
     const isPublished = form?.status === "PUBLISHED";
     const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/form/${form?.slug ?? formId}` : "";
-    const embedCode = shareUrl ? `<iframe src="${shareUrl}" width="100%" height="600" frameborder="0"></iframe>` : "";
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    // Live embed snippet — iframe (fixed size) or auto-resizing script tag (embed.js).
+    const embedCode = !shareUrl
+        ? ""
+        : embedType === "script"
+            ? `<script src="${origin}/embed.js" data-schema-form-id="${form?.slug ?? formId}"></script>`
+            : `<iframe src="${shareUrl}?embed=1" width="${embedWidth}" height="${embedHeight}" frameborder="0" style="border:none;max-width:100%"></iframe>`;
+
+    // Social share intents
+    const shareText = form?.title ? `Fill out: ${form.title}` : "Fill out this form";
+    const enc = encodeURIComponent;
+    const socialLinks = {
+        x: `https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(shareUrl)}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${enc(shareUrl)}`,
+        whatsapp: `https://wa.me/?text=${enc(shareText + " " + shareUrl)}`,
+        email: `mailto:?subject=${enc(shareText)}&body=${enc(shareUrl)}`,
+    };
 
     const copy = async (text: string, label: string) => { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); };
     const downloadQr = () => { if (!qrCanvasRef.current) return; const a = document.createElement("a"); a.href = qrCanvasRef.current.toDataURL("image/png"); a.download = `${form?.title ?? "form"}-qr.png`; a.click(); };
@@ -172,6 +250,9 @@ export default function FormEditorPage() {
             ...(password !== undefined ? { password } : {}),
             hiddenFields: hiddenFields.map((h) => h.trim()).filter(Boolean),
             redirectUrl: redirectUrl.trim() || null,
+            notifyEmail: notifyEmail.trim() || null,
+            webhookUrl: webhookUrl.trim() || null,
+            closedMessage: closedMessage.trim() || null,
             theme: selectedTheme,
         });
         // Reflect new state locally without exposing any value.
@@ -180,8 +261,8 @@ export default function FormEditorPage() {
         toast.success("Settings saved");
     };
 
-    const openAddDialog = () => { setEditingFieldId(null); setFLabel(""); setFType("TEXT"); setFPlaceholder(""); setFRequired(false); setFOptions([]); setFLogic({}); setFScores({}); setFieldDialogOpen(true); };
-    const openEditDialog = (field: NonNullable<typeof fields>[number]) => { setEditingFieldId(field.id); setFLabel(field.label); setFType(field.type); setFPlaceholder(field.placeholder ?? ""); setFRequired(field.isRequired); setFOptions(field.options ?? []); const map: Record<string, string> = {}; (field.logic ?? []).forEach((r) => (map[r.equals] = r.goTo)); setFLogic(map); setFScores(field.scores ?? {}); setFieldDialogOpen(true); };
+    const openAddDialog = () => { setEditingFieldId(null); setFLabel(""); setFType("TEXT"); setFPlaceholder(""); setFDescription(""); setFRequired(false); setFOptions([]); setFLogic({}); setFScores({}); setFValidation({}); setFieldDialogOpen(true); };
+    const openEditDialog = (field: NonNullable<typeof fields>[number]) => { setEditingFieldId(field.id); setFLabel(field.label); setFType(field.type); setFPlaceholder(field.placeholder ?? ""); setFDescription(field.description ?? ""); setFRequired(field.isRequired); setFOptions(field.options ?? []); const map: Record<string, string> = {}; (field.logic ?? []).forEach((r) => (map[r.equals] = r.goTo)); setFLogic(map); setFScores(field.scores ?? {}); setFValidation(field.validation ?? {}); setFieldDialogOpen(true); };
 
     const handleSubmitField = async (e: FormEvent) => {
         e.preventDefault();
@@ -191,8 +272,11 @@ export default function FormEditorPage() {
         const logic = canJump ? Object.entries(fLogic).filter(([eq, goTo]) => goTo && goTo !== "NEXT" && jumpAnswers.includes(eq)).map(([equals, goTo]) => ({ equals, goTo })) : [];
         const scores: Record<string, number> = {};
         if (canJump) { for (const ans of jumpAnswers) { const n = fScores[ans]; if (typeof n === "number" && !Number.isNaN(n)) scores[ans] = n; } }
-        if (editingFieldId) { await updateFieldAsync({ fieldId: editingFieldId, formId, label: fLabel.trim(), type: fType, placeholder: fPlaceholder.trim() || undefined, isRequired: fRequired, options, logic, scores }); }
-        else { await addFieldAsync({ formId, label: fLabel.trim(), type: fType, placeholder: fPlaceholder.trim() || undefined, isRequired: fRequired, index: fields?.length ?? 0, options, logic, scores }); }
+        // Strip empty validation keys; send null when no rules set.
+        const vEntries = Object.entries(fValidation).filter(([, v]) => v != null && !(typeof v === "number" && Number.isNaN(v)) && v !== ("" as unknown));
+        const validation = vEntries.length > 0 ? Object.fromEntries(vEntries) : null;
+        if (editingFieldId) { await updateFieldAsync({ fieldId: editingFieldId, formId, label: fLabel.trim(), type: fType, placeholder: fPlaceholder.trim() || undefined, description: fDescription.trim() || undefined, isRequired: fRequired, options, logic, scores, validation }); }
+        else { await addFieldAsync({ formId, label: fLabel.trim(), type: fType, placeholder: fPlaceholder.trim() || undefined, description: fDescription.trim() || undefined, isRequired: fRequired, index: fields?.length ?? 0, options, logic, scores, validation }); }
         setFieldDialogOpen(false);
     };
 
@@ -221,6 +305,7 @@ export default function FormEditorPage() {
             options: field.options ?? [],
             logic: field.logic ?? [],
             scores: field.scores ?? {},
+            validation: field.validation ?? null,
         });
         toast.success("Field duplicated");
     };
@@ -321,9 +406,22 @@ export default function FormEditorPage() {
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-base font-medium">Questions</h2>
-                                <p className="text-sm text-muted-foreground">{fields?.length ?? 0} field{(fields?.length ?? 0) !== 1 ? "s" : ""}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {fields?.length ?? 0} field{(fields?.length ?? 0) !== 1 ? "s" : ""}
+                                    {(fields?.length ?? 0) > 0 && (
+                                        <> · ~{Math.max(1, Math.round((fields!.length * 9) / 60))} min to complete</>
+                                    )}
+                                </p>
                             </div>
                             <div className="flex gap-2">
+                                {(fields?.length ?? 0) > 4 && (
+                                    <Input
+                                        value={fieldSearch}
+                                        onChange={(e) => setFieldSearch(e.target.value)}
+                                        placeholder="Search fields…"
+                                        className="h-9 w-44"
+                                    />
+                                )}
                                 <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(true)}>
                                     <ClipboardList className="mr-1 size-4" /> Import
                                 </Button>
@@ -336,7 +434,12 @@ export default function FormEditorPage() {
                         ) : fields && fields.length > 0 ? (
                             <div className="space-y-2">
                                 <AnimatePresence initial={false}>
-                                {fields.map((field, idx) => (
+                                {fields
+                                    .filter((f) => !fieldSearch.trim() || f.label.toLowerCase().includes(fieldSearch.trim().toLowerCase()))
+                                    .map((field) => {
+                                    const idx = fields.indexOf(field);
+                                    const dragEnabled = !fieldSearch.trim();
+                                    return (
                                     <motion.div
                                         key={field.id}
                                         initial="hidden"
@@ -345,7 +448,7 @@ export default function FormEditorPage() {
                                         variants={fieldRowVariants}
                                         style={WC_OPACITY_TRANSFORM}
                                         layout
-                                        draggable
+                                        draggable={dragEnabled}
                                         onDragStart={() => setDragIdx(idx)}
                                         onDragOver={(e) => { e.preventDefault(); setDragOverIdx(idx); }}
                                         onDragLeave={() => setDragOverIdx(null)}
@@ -418,8 +521,12 @@ export default function FormEditorPage() {
                                         </div>
                                     </motion.div>
                                     </motion.div>
-                                ))}
+                                    );
+                                })}
                                 </AnimatePresence>
+                                {fieldSearch.trim() && fields.filter((f) => f.label.toLowerCase().includes(fieldSearch.trim().toLowerCase())).length === 0 && (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">No fields match &ldquo;{fieldSearch}&rdquo;</p>
+                                )}
                             </div>
                         ) : (
                             <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-border p-12 text-center">
@@ -469,33 +576,53 @@ export default function FormEditorPage() {
                                 <h2 className="text-base font-medium flex items-center gap-2"><Palette className="size-4" /> Form Theme</h2>
                                 <p className="text-sm text-muted-foreground">Choose the visual style for your public form</p>
                             </div>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                                {FORM_THEME_OPTIONS.map((theme) => (
-                                    <button
-                                        key={theme.value}
-                                        type="button"
-                                        onClick={async () => {
-                                            setSelectedTheme(theme.value);
-                                            await updateFormAsync({ formId, theme: theme.value });
-                                            toast.success(`Theme set to ${theme.label}`);
-                                        }}
-                                        className={cn(
-                                            "relative flex flex-col items-center gap-3 rounded-xl border-2 p-6 text-center transition-all hover:shadow-md",
-                                            selectedTheme === theme.value
-                                                ? "border-primary bg-primary/5"
-                                                : "border-border hover:border-primary/40"
-                                        )}
-                                    >
-                                        <div className="size-10 rounded-full" style={{ background: theme.primaryColor }} />
-                                        <div>
-                                            <p className="text-sm font-semibold">{theme.label}</p>
-                                            <p className="text-xs text-muted-foreground mt-0.5">{theme.description}</p>
-                                        </div>
-                                        {selectedTheme === theme.value && (
-                                            <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>
-                                        )}
-                                    </button>
-                                ))}
+                            <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+                                {/* Theme grid with live preview thumbnails */}
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    {FORM_THEME_OPTIONS.map((theme) => (
+                                        <button
+                                            key={theme.value}
+                                            type="button"
+                                            onMouseEnter={() => setHoverTheme(theme.value)}
+                                            onMouseLeave={() => setHoverTheme(null)}
+                                            onFocus={() => setHoverTheme(theme.value)}
+                                            onBlur={() => setHoverTheme(null)}
+                                            onClick={async () => {
+                                                setSelectedTheme(theme.value);
+                                                await updateFormAsync({ formId, theme: theme.value });
+                                                toast.success(`Theme set to ${theme.label}`);
+                                            }}
+                                            className={cn(
+                                                "relative flex flex-col gap-3 rounded-xl border-2 p-3 text-left transition-all hover:shadow-md",
+                                                selectedTheme === theme.value
+                                                    ? "border-primary"
+                                                    : "border-border hover:border-primary/40"
+                                            )}
+                                        >
+                                            <ThemePreview theme={theme.value} isDark={isDark} />
+                                            <div>
+                                                <p className="text-sm font-semibold">{theme.label}</p>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">{theme.description}</p>
+                                            </div>
+                                            {selectedTheme === theme.value && (
+                                                <span className="absolute right-3 top-3 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Sticky live preview — follows hover, falls back to selected */}
+                                <div className="lg:sticky lg:top-6 lg:self-start">
+                                    <p className="mb-2 text-xs font-medium text-muted-foreground">Live preview</p>
+                                    <ThemePreview
+                                        theme={hoverTheme ?? selectedTheme}
+                                        isDark={isDark}
+                                        className="shadow-sm"
+                                    />
+                                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                                        {FORM_THEME_OPTIONS.find((t) => t.value === (hoverTheme ?? selectedTheme))?.label ?? "Preview"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </TabsContent>
@@ -509,6 +636,35 @@ export default function FormEditorPage() {
                             transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
                             className="space-y-8"
                         >
+
+                        {/* Custom slug */}
+                        <div>
+                            <h2 className="text-base font-medium flex items-center gap-2"><Globe className="size-4" /> Custom Link</h2>
+                            <p className="text-sm text-muted-foreground mb-4">Set a friendly URL for your public form</p>
+                            <div className="flex max-w-xl items-end gap-2">
+                                <div className="flex-1 space-y-2">
+                                    <Label htmlFor="form-slug">Slug</Label>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm text-muted-foreground">/f/</span>
+                                        <Input
+                                            id="form-slug"
+                                            value={slugInput}
+                                            onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                                            placeholder="my-survey"
+                                            className="font-mono"
+                                        />
+                                    </div>
+                                    {slugInput && !slugValid && (
+                                        <p className="text-xs text-destructive">3–80 chars: lowercase letters, numbers, hyphens (no leading/trailing/double hyphen)</p>
+                                    )}
+                                </div>
+                                <Button onClick={handleUpdateSlug} disabled={savingSlug || !slugValid || slugInput === (form?.slug ?? "")}>
+                                    {savingSlug ? <Loader2 className="size-4 animate-spin" /> : "Update"}
+                                </Button>
+                            </div>
+                        </div>
+
+                        <Separator />
 
                         {/* Redirect URL */}
                         <div>
@@ -581,7 +737,75 @@ export default function FormEditorPage() {
                             </div>
                         </div>
 
+                        <Separator />
+
+                        {/* Notifications & integrations */}
+                        <div>
+                            <h2 className="text-base font-medium">Notifications &amp; Integrations</h2>
+                            <p className="text-sm text-muted-foreground mb-4">Get notified and forward responses when someone submits</p>
+                            <div className="grid gap-6 sm:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="notify-email">Email notification</Label>
+                                    <Input id="notify-email" type="email" value={notifyEmail} onChange={(e) => setNotifyEmail(e.target.value)} placeholder="you@example.com" />
+                                    <p className="text-xs text-muted-foreground">Receive an email with each new response</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="webhook-url">Webhook URL</Label>
+                                    <Input id="webhook-url" type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://hooks.example.com/..." />
+                                    <p className="text-xs text-muted-foreground">POST each response as JSON (Zapier, Make, your API)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Closed message */}
+                        <div>
+                            <h2 className="text-base font-medium">Closed Message</h2>
+                            <p className="text-sm text-muted-foreground mb-4">Shown when the form is unpublished, expired, or hit its response limit</p>
+                            <div className="max-w-md space-y-2">
+                                <Label htmlFor="closed-message">Message</Label>
+                                <Textarea id="closed-message" value={closedMessage} onChange={(e) => setClosedMessage(e.target.value)} placeholder="This form is no longer accepting responses." rows={2} maxLength={500} />
+                            </div>
+                        </div>
+
                         <Button onClick={handleSaveSettings} disabled={savingForm} className="gap-1.5">{savingForm ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : "Save All Settings"}</Button>
+
+                        <Separator />
+
+                        {/* Danger zone */}
+                        <div className="rounded-lg border border-destructive/40 p-4">
+                            <h2 className="text-base font-medium text-destructive">Danger Zone</h2>
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-medium">Delete this form</p>
+                                    <p className="text-sm text-muted-foreground">Permanently removes the form and all its responses. Cannot be undone.</p>
+                                </div>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button variant="outline" className="shrink-0 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2 className="mr-1 size-4" /> Delete Form</Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete &ldquo;{form?.title}&rdquo;?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This permanently deletes the form and every response. This action cannot be undone.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={handleDeleteForm}
+                                                disabled={deletingForm}
+                                                className="bg-destructive text-white hover:bg-destructive/90"
+                                            >
+                                                {deletingForm ? "Deleting…" : "Delete permanently"}
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </div>
+                        </div>
                     </motion.div>
                     </TabsContent>
 
@@ -618,16 +842,75 @@ export default function FormEditorPage() {
                                         <Input readOnly value={shareUrl} className="font-mono text-sm" />
                                         <Button variant="outline" onClick={() => copy(shareUrl, "Link")}><Copy className="mr-1 size-4" /> Copy</Button>
                                     </div>
+                                    {/* Social share */}
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {([
+                                            ["X", socialLinks.x],
+                                            ["LinkedIn", socialLinks.linkedin],
+                                            ["WhatsApp", socialLinks.whatsapp],
+                                            ["Email", socialLinks.email],
+                                        ] as const).map(([label, href]) => (
+                                            <Button key={label} asChild variant="outline" size="sm">
+                                                <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                                            </Button>
+                                        ))}
+                                        {typeof navigator !== "undefined" && "share" in navigator && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => navigator.share({ title: form?.title ?? "Form", url: shareUrl }).catch(() => {})}
+                                            >
+                                                Share…
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <Separator />
 
                                 <div className="space-y-3">
                                     <h2 className="text-base font-medium">Embed Code</h2>
+                                    {/* Type switcher */}
+                                    <div className="inline-flex rounded-lg border border-border/60 bg-muted/50 p-1">
+                                        {([
+                                            ["iframe", "Fixed iframe"],
+                                            ["script", "Auto-resize"],
+                                        ] as const).map(([val, lbl]) => (
+                                            <button
+                                                key={val}
+                                                type="button"
+                                                onClick={() => setEmbedType(val)}
+                                                className={cn(
+                                                    "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                                                    embedType === val ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                                                )}
+                                            >
+                                                {lbl}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {/* Size controls (iframe only) */}
+                                    {embedType === "iframe" && (
+                                        <div className="flex flex-wrap gap-3">
+                                            <div className="space-y-1">
+                                                <Label htmlFor="embed-w" className="text-xs">Width</Label>
+                                                <Input id="embed-w" value={embedWidth} onChange={(e) => setEmbedWidth(e.target.value)} className="h-8 w-28 font-mono text-xs" placeholder="100%" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label htmlFor="embed-h" className="text-xs">Height (px)</Label>
+                                                <Input id="embed-h" value={embedHeight} onChange={(e) => setEmbedHeight(e.target.value.replace(/[^0-9]/g, ""))} className="h-8 w-28 font-mono text-xs" placeholder="600" />
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex gap-2">
                                         <Input readOnly value={embedCode} className="font-mono text-xs" />
                                         <Button variant="outline" onClick={() => copy(embedCode, "Embed")}><Copy className="mr-1 size-4" /> Copy</Button>
                                     </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {embedType === "script"
+                                            ? "Auto-resizes to fit the form height. Best for most sites."
+                                            : "Fixed dimensions. Use when you need a set size."}
+                                    </p>
                                 </div>
 
                                 <Separator />
@@ -636,8 +919,21 @@ export default function FormEditorPage() {
                                     <h2 className="text-base font-medium flex items-center gap-2"><QrCode className="size-5" /> QR Code</h2>
                                     <div className="flex items-start gap-6">
                                         <canvas ref={qrCallbackRef} className="rounded-lg border border-border" />
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             <p className="text-sm text-muted-foreground">Scan to open the form on any device</p>
+                                            <div className="flex items-center gap-4">
+                                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    Foreground
+                                                    <input type="color" value={qrFg} onChange={(e) => setQrFg(e.target.value)} className="h-7 w-7 cursor-pointer rounded border border-border bg-transparent" aria-label="QR foreground color" />
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    Background
+                                                    <input type="color" value={qrBg} onChange={(e) => setQrBg(e.target.value)} className="h-7 w-7 cursor-pointer rounded border border-border bg-transparent" aria-label="QR background color" />
+                                                </label>
+                                                {(qrFg !== "#000000" || qrBg !== "#ffffff") && (
+                                                    <button type="button" onClick={() => { setQrFg("#000000"); setQrBg("#ffffff"); }} className="text-xs text-muted-foreground hover:text-foreground hover:underline">Reset</button>
+                                                )}
+                                            </div>
                                             <Button variant="outline" size="sm" onClick={downloadQr} disabled={!qrGenerated}><Download className="mr-1 size-4" /> Download PNG</Button>
                                         </div>
                                     </div>
@@ -696,9 +992,33 @@ export default function FormEditorPage() {
                             </div>
                         </div>
                         <div className="space-y-2">
+                            <Label htmlFor="f-description">Help text</Label>
+                            <Textarea id="f-description" value={fDescription} onChange={(e) => setFDescription(e.target.value)} placeholder="Optional description shown under the question" rows={2} />
+                        </div>
+                        <div className="space-y-2">
                             <Label htmlFor="f-placeholder">Placeholder</Label>
                             <Input id="f-placeholder" value={fPlaceholder} onChange={(e) => setFPlaceholder(e.target.value)} placeholder="Optional hint text" />
                         </div>
+                        {/* Validation rules (text + number types) */}
+                        {["TEXT", "LONG_TEXT", "EMAIL", "PHONE", "WEBSITE", "PASSWORD", "NUMBER"].includes(fType) && (
+                            <div className="space-y-2 rounded-lg border border-border p-3">
+                                <Label className="text-xs text-muted-foreground">Validation (optional)</Label>
+                                {fType === "NUMBER" ? (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input type="number" placeholder="Min value" value={fValidation.min ?? ""} onChange={(e) => setFValidation((p) => ({ ...p, min: e.target.value === "" ? undefined : Number(e.target.value) }))} />
+                                        <Input type="number" placeholder="Max value" value={fValidation.max ?? ""} onChange={(e) => setFValidation((p) => ({ ...p, max: e.target.value === "" ? undefined : Number(e.target.value) }))} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Input type="number" min="0" placeholder="Min length" value={fValidation.minLength ?? ""} onChange={(e) => setFValidation((p) => ({ ...p, minLength: e.target.value === "" ? undefined : Number(e.target.value) }))} />
+                                            <Input type="number" min="1" placeholder="Max length" value={fValidation.maxLength ?? ""} onChange={(e) => setFValidation((p) => ({ ...p, maxLength: e.target.value === "" ? undefined : Number(e.target.value) }))} />
+                                        </div>
+                                        <Input placeholder="Regex pattern (e.g. ^[A-Z]{2}\\d{4}$)" value={fValidation.pattern ?? ""} onChange={(e) => setFValidation((p) => ({ ...p, pattern: e.target.value || undefined }))} className="font-mono text-xs" />
+                                    </>
+                                )}
+                            </div>
+                        )}
                         {isChoice && (
                             <div className="space-y-2">
                                 <Label>Options</Label>

@@ -17,6 +17,18 @@ const fieldTypeSchema = z.enum([
     "STATEMENT",
 ]);
 
+// Per-field validation rules (all optional). pattern is a user-supplied regex source.
+export const fieldValidationSchema = z
+    .object({
+        minLength: z.number().int().min(0).max(10000).optional(),
+        maxLength: z.number().int().min(1).max(10000).optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        pattern: z.string().max(300).optional(),
+    })
+    .nullable()
+    .optional();
+
 export const addFieldInput = z.object({
     formId: z.uuid(),
     userId: z.uuid(),
@@ -29,6 +41,7 @@ export const addFieldInput = z.object({
     options: z.array(z.string().max(200)).optional(),
     logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
     scores: z.record(z.string(), z.number()).optional(),
+    validation: fieldValidationSchema,
 });
 export type AddFieldInputType = z.infer<typeof addFieldInput>;
 
@@ -51,6 +64,7 @@ export const updateFieldInput = z.object({
     options: z.array(z.string().max(200)).optional(),
     logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
     scores: z.record(z.string(), z.number()).optional(),
+    validation: fieldValidationSchema,
 });
 export type UpdateFieldInputType = z.infer<typeof updateFieldInput>;
 

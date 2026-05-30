@@ -8,6 +8,9 @@ import { useTheme } from "next-themes";
 import { useUser, useLogout } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Monogram } from "~/components/ui/monogram";
+import { Kbd } from "~/components/ui/kbd";
+import { Search } from "~/components/icons";
+import { CommandPalette } from "~/components/command-palette";
 import {
     motion,
     AnimatePresence,
@@ -68,6 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="flex min-h-[100dvh] bg-background">
+            <CommandPalette />
             {/* ── Sidebar ── */}
             <SlideIn direction="left" className="hidden md:flex">
                 <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
@@ -78,6 +82,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 Schema
                             </span>
                         </Link>
+                    </div>
+
+                    {/* Command palette trigger */}
+                    <div className="px-3 pb-2">
+                        <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+                            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                            <Search className="size-4" />
+                            <span className="flex-1 text-left">Search…</span>
+                            <Kbd>⌘K</Kbd>
+                        </button>
                     </div>
 
                     {/* Nav */}

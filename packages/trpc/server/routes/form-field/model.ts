@@ -17,6 +17,17 @@ const fieldTypeSchema = z.enum([
     "STATEMENT",
 ]);
 
+const fieldValidationModel = z
+    .object({
+        minLength: z.number().int().min(0).max(10000).optional(),
+        maxLength: z.number().int().min(1).max(10000).optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        pattern: z.string().max(300).optional(),
+    })
+    .nullable()
+    .optional();
+
 export const addFieldInputModel = z.object({
     formId: z.string().uuid(),
     label: z.string().max(100),
@@ -28,6 +39,7 @@ export const addFieldInputModel = z.object({
     options: z.array(z.string().max(200)).optional(),
     logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
     scores: z.record(z.string(), z.number()).optional(),
+    validation: fieldValidationModel,
 });
 export const addFieldOutputModel = z.object({ id: z.string() });
 
@@ -46,6 +58,13 @@ export const listFieldsOutputModel = z.array(
         options: z.array(z.string()),
         logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).nullable(),
         scores: z.record(z.string(), z.number()).nullable(),
+        validation: z.object({
+            minLength: z.number().optional(),
+            maxLength: z.number().optional(),
+            min: z.number().optional(),
+            max: z.number().optional(),
+            pattern: z.string().optional(),
+        }).nullable(),
         createdAt: z.date().nullable(),
         updatedAt: z.date().nullable(),
     }),
@@ -63,6 +82,7 @@ export const updateFieldInputModel = z.object({
     options: z.array(z.string().max(200)).optional(),
     logic: z.array(z.object({ equals: z.string(), goTo: z.string() })).optional(),
     scores: z.record(z.string(), z.number()).optional(),
+    validation: fieldValidationModel,
 });
 export const updateFieldOutputModel = z.object({ id: z.string() });
 

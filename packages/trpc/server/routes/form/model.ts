@@ -23,6 +23,9 @@ export const getFormOutputModel = z.object({
     hasPassword: z.boolean(), isArchived: z.boolean(),
     theme: z.string().nullable().optional(),
     redirectUrl: z.string().nullable().optional(),
+    notifyEmail: z.string().nullable().optional(),
+    webhookUrl: z.string().nullable().optional(),
+    closedMessage: z.string().nullable().optional(),
     createdBy: z.string().nullable().optional(), createdAt: z.date().nullable(), updatedAt: z.date().nullable(),
 });
 
@@ -36,6 +39,9 @@ export const updateFormInputModel = z.object({
     password: z.string().max(100).nullable().optional(),
     theme: z.string().max(50).optional(),
     redirectUrl: z.string().max(500).nullable().optional(),
+    notifyEmail: z.string().max(200).nullable().optional(),
+    webhookUrl: z.string().max(500).nullable().optional(),
+    closedMessage: z.string().max(500).nullable().optional(),
 });
 export const updateFormOutputModel = z.object({ id: z.string() });
 

@@ -5,6 +5,7 @@ import { submissionsTable } from "@repo/database/models/submission";
 import { formEventsTable } from "@repo/database/models/form-event";
 import { eq, and, desc, count, gte, lte, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "../common/email";
 import {
     submitFormInput,
     type SubmitFormInputType,
@@ -22,11 +23,15 @@ import {
     type GetSubmissionTimeSeriesInputType,
 } from "./model";
 
+function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
 export default class SubmissionService {
     public async submitForm(payload: SubmitFormInputType) {
         const { formId, data } = await submitFormInput.parseAsync(payload);
         const form = await db
-            .select({ id: formsTable.id, status: formsTable.status, expiresAt: formsTable.expiresAt, maxResponses: formsTable.maxResponses, password: formsTable.password })
+            .select({ id: formsTable.id, title: formsTable.title, status: formsTable.status, expiresAt: formsTable.expiresAt, maxResponses: formsTable.maxResponses, password: formsTable.password, notifyEmail: formsTable.notifyEmail, webhookUrl: formsTable.webhookUrl })
             .from(formsTable)
             .where(eq(formsTable.id, formId));
         if (!form?.[0]) throw new Error("Form not found");
@@ -62,6 +67,29 @@ export default class SubmissionService {
                 .returning({ id: submissionsTable.id });
         });
         if (!result?.[0]) throw new Error("Failed to submit");
+
+        // Post-submit side effects — fire-and-forget so a slow webhook/email never
+        // blocks the respondent's success response. Failures are swallowed (best-effort).
+        const meta = form[0];
+        if (meta.notifyEmail) {
+            const rows = Object.entries(data)
+                .map(([k, v]) => `<tr><td style="padding:4px 8px;font-weight:600">${escapeHtml(k)}</td><td style="padding:4px 8px">${escapeHtml(Array.isArray(v) ? v.join(", ") : String(v ?? ""))}</td></tr>`)
+                .join("");
+            void sendEmail({
+                to: meta.notifyEmail,
+                subject: `New response: ${meta.title}`,
+                html: `<h2>New response to "${escapeHtml(meta.title)}"</h2><table style="border-collapse:collapse">${rows}</table>`,
+                idempotencyKey: `submission/${result[0].id}`,
+            });
+        }
+        if (meta.webhookUrl) {
+            void fetch(meta.webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ formId, submissionId: result[0].id, title: meta.title, data, submittedAt: new Date().toISOString() }),
+            }).catch(() => { /* best-effort */ });
+        }
+
         return { id: result[0].id };
     }
 
