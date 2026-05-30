@@ -61,6 +61,9 @@ export const clonePublicFormOutputModel = z.object({ id: z.string() });
 export const generateFormInputModel = z.object({ prompt: z.string().min(10).max(500) });
 export const generateFormOutputModel = z.object({ id: z.string().uuid() });
 
+export const importGoogleFormInputModel = z.object({ url: z.string().url().max(2000), workspaceId: z.string().uuid().optional() });
+export const importGoogleFormOutputModel = z.object({ id: z.string(), importedCount: z.number(), skipped: z.array(z.string()) });
+
 export const improveFieldInputModel = z.object({ fieldId: z.string().uuid() });
 export const improveFieldOutputModel = z.object({ label: z.string() });
 

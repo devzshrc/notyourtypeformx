@@ -3,12 +3,12 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft, FileText } from "~/components/icons";
+import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft, FileText, Download } from "~/components/icons";
 import { EmptyState } from "~/components/ui/empty-state";
 import { formatRelativeTime, formatAbsoluteTime } from "~/lib/utils";
 import { toast } from "sonner";
 
-import { useCreateForm, useListForms, useCloneForm, useArchiveForm, useGenerateForm, useMoveForm } from "~/hooks/api/form";
+import { useCreateForm, useListForms, useCloneForm, useArchiveForm, useGenerateForm, useImportGoogleForm, useMoveForm } from "~/hooks/api/form";
 import { useListWorkspaces } from "~/hooks/api/workspace";
 
 import { Button } from "~/components/ui/button";
@@ -56,9 +56,11 @@ export default function DashboardForms() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [aiOpen, setAiOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [aiPrompt, setAiPrompt] = useState("");
+    const [importUrl, setImportUrl] = useState("");
 
     const { workspaces } = useListWorkspaces();
     const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>();
@@ -68,6 +70,7 @@ export default function DashboardForms() {
     const { cloneFormAsync, isPending: cloning } = useCloneForm();
     const { archiveFormAsync, isPending: archiving } = useArchiveForm();
     const { generateFormAsync, isPending: generating, error: aiError } = useGenerateForm();
+    const { importGoogleFormAsync, isPending: importing, error: importError } = useImportGoogleForm();
     const { moveFormAsync } = useMoveForm();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -85,6 +88,20 @@ export default function DashboardForms() {
             setAiOpen(false);
             setAiPrompt("");
             toast.success("Form generated! Redirecting to editor...");
+            router.push(`/dashboard/forms/${id}`);
+        } catch {
+            // error shown inline
+        }
+    };
+
+    const handleImport = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        try {
+            const { id, importedCount, skipped } = await importGoogleFormAsync({ url: importUrl.trim(), workspaceId: activeWorkspaceId });
+            setImportOpen(false);
+            setImportUrl("");
+            toast.success(`Imported ${importedCount} question${importedCount === 1 ? "" : "s"}. Redirecting to editor...`);
+            if (skipped.length > 0) toast.warning(`Skipped ${skipped.length} unsupported item${skipped.length === 1 ? "" : "s"} (grids, file upload, or media).`);
             router.push(`/dashboard/forms/${id}`);
         } catch {
             // error shown inline
@@ -170,6 +187,44 @@ export default function DashboardForms() {
                                         <Button type="button" variant="ghost" onClick={() => setAiOpen(false)} disabled={generating}>Cancel</Button>
                                         <Button type="submit" disabled={generating || aiPrompt.trim().length < 10} className="gap-2">
                                             {generating ? <><Loader2 className="size-4 animate-spin" /> Generating...</> : <><Sparkles className="size-4" /> Generate</>}
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
+
+                        {/* Import from Google Forms Dialog */}
+                        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="gap-2">
+                                    <Download className="size-4 text-primary" />
+                                    Import from Google Forms
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-lg">
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-2"><Download className="size-5 text-primary" /> Import from Google Forms</DialogTitle>
+                                    <DialogDescription>Paste a public Google Form link. We&apos;ll import its title, questions, types, and options as a new draft.</DialogDescription>
+                                </DialogHeader>
+                                <form className="space-y-4" onSubmit={handleImport}>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="import-url">Google Form link</Label>
+                                        <Input
+                                            id="import-url"
+                                            type="url"
+                                            required
+                                            value={importUrl}
+                                            onChange={(e) => setImportUrl(e.target.value)}
+                                            placeholder="https://docs.google.com/forms/d/e/.../viewform"
+                                            disabled={importing}
+                                        />
+                                        <p className="text-xs text-muted-foreground">Open your form in Google Forms → Send → link tab, and paste the responder (/viewform) URL. Link sharing must be on. Grids, file uploads, and media are skipped.</p>
+                                    </div>
+                                    {importError && <p className="text-sm text-destructive" role="alert">{importError.message}</p>}
+                                    <DialogFooter>
+                                        <Button type="button" variant="ghost" onClick={() => setImportOpen(false)} disabled={importing}>Cancel</Button>
+                                        <Button type="submit" disabled={importing || importUrl.trim().length === 0} className="gap-2">
+                                            {importing ? <><Loader2 className="size-4 animate-spin" /> Importing...</> : <><Download className="size-4" /> Import</>}
                                         </Button>
                                     </DialogFooter>
                                 </form>

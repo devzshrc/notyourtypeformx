@@ -184,6 +184,14 @@ export function useGenerateForm() {
     return { generateFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
 }
 
+export function useImportGoogleForm() {
+    const utils = trpc.useUtils();
+    const mutation = trpc.form.importGoogleForm.useMutation({
+        onSuccess: async () => { await utils.form.listForms.invalidate(); },
+    });
+    return { importGoogleFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error };
+}
+
 export function useImproveField(formId: string) {
     const utils = trpc.useUtils();
     const mutation = trpc.form.improveField.useMutation({

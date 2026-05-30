@@ -8,6 +8,7 @@ import {
     archiveFormInputModel, archiveFormOutputModel, listPublicFormsInputModel, listPublicFormsOutputModel,
     clonePublicFormInputModel, clonePublicFormOutputModel,
     generateFormInputModel, generateFormOutputModel,
+    importGoogleFormInputModel, importGoogleFormOutputModel,
     improveFieldInputModel, improveFieldOutputModel,
     updateSlugInputModel, updateSlugOutputModel,
     getFormBySlugInputModel, getFormBySlugOutputModel,
@@ -68,6 +69,11 @@ export const formRouter = router({
         .meta({ openapi: { method: "POST", path: getPath("/generateForm"), tags: TAGS, protect: true } })
         .input(generateFormInputModel).output(generateFormOutputModel)
         .mutation(async ({ input, ctx }) => formService.generateFormWithAI(ctx.user.id, input.prompt)),
+
+    importGoogleForm: authenticatedProcedure
+        .meta({ openapi: { method: "POST", path: getPath("/importGoogleForm"), tags: TAGS, protect: true } })
+        .input(importGoogleFormInputModel).output(importGoogleFormOutputModel)
+        .mutation(async ({ input, ctx }) => formService.importFromGoogleForm(ctx.user.id, input.url, input.workspaceId)),
 
     improveField: authenticatedProcedure
         .meta({ openapi: { method: "POST", path: getPath("/improveField"), tags: TAGS, protect: true } })

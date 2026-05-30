@@ -8,7 +8,8 @@ import { eq, and, or, inArray } from "drizzle-orm";
 import Groq from "groq-sdk";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { toLabelKey, slugify } from "../common/utils";
+import { toLabelKey, slugify, stripUnsafe } from "../common/utils";
+import { fetchGoogleFormHtml, parseGoogleForm } from "./google-import";
 import { assertFormReadAccess, assertFormWriteAccess } from "../common/access";
 import {
     createFormInput, type CreateFormInputType,
@@ -28,11 +29,6 @@ import {
 // ─── AI form generation ───────────────────────────────────────────────────────
 
 const FIELD_TYPES = ["TEXT","LONG_TEXT","EMAIL","NUMBER","PHONE","WEBSITE","DATE","YES_NO","MULTIPLE_CHOICE","CHECKBOXES","DROPDOWN","RATING","STATEMENT"] as const;
-
-// Strip HTML/script/javascript: from AI-generated content before it is stored or rendered.
-function stripUnsafe(s: string): string {
-    return s.replace(/javascript:/gi, "").replace(/<[^>]*>/g, "").trim();
-}
 
 const GeneratedFormSchema = z.object({
     title: z.string().min(1).max(50).transform(stripUnsafe),
@@ -364,6 +360,50 @@ export default class FormService {
         }
 
         return { id: formId };
+    }
+
+    public async importFromGoogleForm(userId: string, url: string, workspaceId?: string): Promise<{ id: string; importedCount: number; skipped: string[] }> {
+        const html = await fetchGoogleFormHtml(url);
+        const parsed = parseGoogleForm(html);
+
+        // Atomic like _cloneFormRow: a half-imported form should never be left behind.
+        const id = await db.transaction(async (tx) => {
+            const formResult = await tx.insert(formsTable).values({
+                title: stripUnsafe(parsed.title).slice(0, 50) || "Imported form",
+                description: parsed.description,
+                status: "DRAFT",
+                visibility: "UNLISTED",
+                slug: slugify(parsed.title),
+                createdBy: userId,
+                workspaceId: workspaceId ?? null,
+            }).returning({ id: formsTable.id });
+            if (!formResult?.[0]?.id) throw new Error("Failed to create form");
+            const formId = formResult[0].id;
+
+            for (let i = 0; i < parsed.fields.length; i++) {
+                const f = parsed.fields[i]!;
+                const fieldResult = await tx.insert(formsFieldsTable).values({
+                    formId,
+                    label: f.label,
+                    labelKey: toLabelKey(f.label),
+                    description: f.description,
+                    isRequired: f.isRequired,
+                    index: String(i),
+                    type: f.type,
+                    logic: null,
+                    scores: null,
+                }).returning({ id: formsFieldsTable.id });
+                if (!fieldResult?.[0]?.id) throw new Error("Failed to create field");
+                if (f.options.length > 0) {
+                    await tx.insert(formFieldOptionsTable).values(
+                        f.options.map((label, idx) => ({ fieldId: fieldResult[0]!.id, label, index: String(idx) })),
+                    );
+                }
+            }
+            return formId;
+        });
+
+        return { id, importedCount: parsed.fields.length, skipped: parsed.skipped };
     }
 
     public async improveFieldLabel(fieldId: string, userId: string): Promise<{ label: string }> {
