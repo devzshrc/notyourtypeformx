@@ -18,7 +18,7 @@ const envSchema = z.object({
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     // Email (Resend). Optional — when unset, emails are logged instead of sent so local dev works.
     RESEND_API_KEY: z.string().optional().describe("Resend API key for transactional email"),
-    EMAIL_FROM: z.string().default("Schema <onboarding@resend.dev>").describe("Default From address"),
+    EMAIL_FROM: z.string().default("Schema <noreply@replies.devzshrc.in>").describe("Default From address"),
     WEB_URL: z.string().default("http://localhost:3000").describe("Public web app URL, used to build links in emails"),
 });
 

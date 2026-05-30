@@ -15,6 +15,13 @@ const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 // prod startup logs rather than buried in request noise.
 if (!resend) {
     console.warn("[email] RESEND_API_KEY not set — all emails will be skipped (logged only).");
+} else if (env.EMAIL_FROM.includes("onboarding@resend.dev")) {
+    // Sandbox sender only delivers to the Resend account owner; every other recipient
+    // is silently rejected. Loud at boot so this isn't mistaken for "emails not sending".
+    console.warn(
+        "[email] EMAIL_FROM uses the Resend sandbox sender (onboarding@resend.dev) — " +
+            "mail will ONLY reach the Resend account owner. Verify a domain and set EMAIL_FROM to fix.",
+    );
 }
 
 export interface SendEmailOptions {
