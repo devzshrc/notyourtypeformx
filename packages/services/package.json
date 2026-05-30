@@ -36,7 +36,6 @@
     "@repo/logger": "workspace:*",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
-    "google-auth-library": "^10.5.0",
     "groq-sdk": "^1.2.0",
     "jsonwebtoken": "^9.0.3",
     "resend": "^6.12.4",

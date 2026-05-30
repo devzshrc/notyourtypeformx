@@ -17,8 +17,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// Google sign-in uses the GIS redirect flow (see components/auth/google-button.tsx),
-// which loads the gsi/client script itself — no React provider needed here.
 export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [trpcClient] = useState(() =>
     trpc.createClient({

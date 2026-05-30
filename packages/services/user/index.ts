@@ -7,15 +7,12 @@ import {
     type GenerateUserTokenPayloadType,
     signInUserWithEmailAndPassword,
     type SignInUserWithEmailAndPasswordType,
-    signInWithGoogle,
-    type SignInWithGoogleType,
     DUMMY_BCRYPT_HASH,
 } from "./model";
 import { usersTable } from "@repo/database/models/user";
 import { db, eq } from "@repo/database";
 import bcrypt from "bcryptjs";
 import * as JWT from "jsonwebtoken";
-import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import { env } from "../env";
 import { sendEmail } from "../common/email";
 import { welcomeEmail } from "../common/email-templates";
@@ -58,7 +55,7 @@ export default class UserService {
         const parsed = await createUserWithEmailAndPassword.parseAsync(payload);
         const fullName = parsed.fullName.trim();
         // Normalize email so lookups, dedupe and the welcome idempotencyKey are
-        // case-insensitive and match the Google path (which also lowercases).
+        // case-insensitive.
         const email = parsed.email.trim().toLowerCase();
         const { password } = parsed;
         //parseAsync is a funcationality of zod that validates for us
@@ -98,71 +95,13 @@ export default class UserService {
         };
     }
 
-    public async signInWithGoogle(payload: SignInWithGoogleType) {
-        const { idToken } = await signInWithGoogle.parseAsync(payload);
-        if (!env.GOOGLE_CLIENT_ID) throw new Error("Google sign-in is not configured");
-
-        // Verify the ID token signature AND that its audience is OUR client id (rejects a
-        // token minted for another app — the "confused deputy" attack). google-auth-library
-        // fetches and caches Google's signing keys and checks exp/iss for us.
-        const oauthClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
-        let ticketPayload: TokenPayload | undefined;
-        try {
-            const ticket = await oauthClient.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
-            ticketPayload = ticket.getPayload();
-        } catch {
-            throw new UnauthorizedError("Invalid Google credential");
-        }
-        if (!ticketPayload?.sub) throw new UnauthorizedError("Invalid Google profile");
-        if (!ticketPayload.email || ticketPayload.email_verified !== true) {
-            throw new UnauthorizedError("Google account email is not verified");
-        }
-
-        const googleId = ticketPayload.sub;
-        const email = ticketPayload.email.toLowerCase();
-        const fullName = ticketPayload.name || email.split("@")[0]!;
-        const avatarUrl = ticketPayload.picture ?? null;
-
-        // 1) Existing Google-linked account → sign in.
-        const byGoogle = await db.select().from(usersTable).where(eq(usersTable.googleId, googleId));
-        if (byGoogle?.[0]) {
-            const { token } = await this.generateUserToken({ id: byGoogle[0].id });
-            return { id: byGoogle[0].id, token };
-        }
-
-        // 2) Same email already registered (password account) → link Google to it.
-        //    Safe because Google asserted email_verified.
-        const existing = await this.getUserByEmail(email);
-        if (existing) {
-            await db
-                .update(usersTable)
-                .set({ googleId, avatarUrl: existing.avatarUrl ?? avatarUrl, emailVerified: existing.emailVerified ?? new Date() })
-                .where(eq(usersTable.id, existing.id));
-            const { token } = await this.generateUserToken({ id: existing.id });
-            return { id: existing.id, token };
-        }
-
-        // 3) New user → create (no password, provider = google).
-        const result = await db
-            .insert(usersTable)
-            .values({ fullName, email, googleId, avatarUrl, emailVerified: new Date(), authProvider: "google" })
-            .returning({ id: usersTable.id });
-        if (!result?.[0]?.id) throw new Error("something went wrong while creating a new user");
-
-        const { token } = await this.generateUserToken({ id: result[0].id });
-        const welcome = welcomeEmail({ name: fullName, url: `${env.WEB_URL}/dashboard` });
-        void sendEmail({ to: email, subject: welcome.subject, html: welcome.html, idempotencyKey: `welcome/${result[0].id}` });
-
-        return { id: result[0].id, token };
-    }
-
     public async signInUserWithEmailAndPassword(payload: SignInUserWithEmailAndPasswordType) {
         const parsed = await signInUserWithEmailAndPassword.parseAsync(payload);
         const email = parsed.email.trim().toLowerCase();
         const { password } = parsed;
 
-        // Generic error for every failure mode (no such user / OAuth-only account /
-        // wrong password) to prevent account enumeration. Run a bcrypt compare even
+        // Generic error for every failure mode (no such user / wrong password) to
+        // prevent account enumeration. Run a bcrypt compare even
         // when the user is missing to flatten the timing side-channel.
         const existingUser = await this.getUserByEmail(email);
         const hash = existingUser?.passwordHash ?? DUMMY_BCRYPT_HASH;

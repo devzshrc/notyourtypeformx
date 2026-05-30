@@ -20,8 +20,6 @@ const envSchema = z.object({
     RESEND_API_KEY: z.string().optional().describe("Resend API key for transactional email"),
     EMAIL_FROM: z.string().default("Schema <onboarding@resend.dev>").describe("Default From address"),
     WEB_URL: z.string().default("http://localhost:3000").describe("Public web app URL, used to build links in emails"),
-    // Google OAuth. Optional — when unset, Google sign-in is disabled.
-    GOOGLE_CLIENT_ID: z.string().optional().describe("Google OAuth web client ID, used to verify ID tokens"),
 });
 
 function createEnv(env: NodeJS.ProcessEnv) {

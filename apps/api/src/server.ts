@@ -63,7 +63,7 @@ const authLimiter = rateLimit({
 });
 
 const isAuthPath = (p: string) =>
-    /(createUserWithEmailAndPassword|signInUserWithEmailAndPassword|signInWithGoogle)/.test(p);
+    /(createUserWithEmailAndPassword|signInUserWithEmailAndPassword)/.test(p);
 
 // Security headers. CSP is disabled because this process also serves the Scalar
 // API-reference UI at /docs (which loads its own scripts); the embeddable form
@@ -137,7 +137,6 @@ app.use("/api/submission/submitForm", submitLimiter);
 app.use("/api/submission/recordEvent", publicApiLimiter);
 app.use("/api/submission/verifyFormPassword", publicApiLimiter);
 app.use("/api/submission/getPublicForm", publicApiLimiter);
-app.use("/api/authentication/signInWithGoogle", publicApiLimiter);
 app.use("/api/form/generateForm", aiLimiter);
 app.use("/api/form/suggestFields", aiLimiter);
 
