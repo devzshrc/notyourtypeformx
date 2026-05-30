@@ -28,6 +28,6 @@ export const signInUserWithEmailAndPassword = z.object({
 export type SignInUserWithEmailAndPasswordType = z.infer<typeof signInUserWithEmailAndPassword>;
 
 export const signInWithGoogle = z.object({
-    accessToken: z.string().min(1).describe("Google OAuth access token from the web client"),
+    idToken: z.string().min(1).describe("Google ID token (credential JWT) from the web client"),
 });
 export type SignInWithGoogleType = z.infer<typeof signInWithGoogle>;

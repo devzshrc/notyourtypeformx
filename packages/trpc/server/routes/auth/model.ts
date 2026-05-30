@@ -24,7 +24,7 @@ export const signInUserWithEmailAndPasswordOutputModel = z.object({
 });
 
 export const signInWithGoogleInputModel = z.object({
-    accessToken: z.string().min(1).describe("Google OAuth access token from the client"),
+    idToken: z.string().min(1).describe("Google ID token (credential JWT) from the client"),
 });
 
 export const signInWithGoogleOutputModel = z.object({

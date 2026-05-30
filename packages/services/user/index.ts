@@ -15,6 +15,7 @@ import { usersTable } from "@repo/database/models/user";
 import { db, eq } from "@repo/database";
 import bcrypt from "bcryptjs";
 import * as JWT from "jsonwebtoken";
+import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import { env } from "../env";
 import { sendEmail } from "../common/email";
 import { welcomeEmail } from "../common/email-templates";
@@ -98,29 +99,29 @@ export default class UserService {
     }
 
     public async signInWithGoogle(payload: SignInWithGoogleType) {
-        const { accessToken } = await signInWithGoogle.parseAsync(payload);
+        const { idToken } = await signInWithGoogle.parseAsync(payload);
         if (!env.GOOGLE_CLIENT_ID) throw new Error("Google sign-in is not configured");
 
-        // 1) Validate the access token was issued to OUR client (prevents token from
-        //    another app being replayed here — the "confused deputy" attack).
-        const tiRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`);
-        if (!tiRes.ok) throw new Error("Invalid Google token");
-        const ti = (await tiRes.json()) as { aud?: string };
-        if (ti.aud !== env.GOOGLE_CLIENT_ID) throw new Error("Google token was not issued for this app");
+        // Verify the ID token signature AND that its audience is OUR client id (rejects a
+        // token minted for another app — the "confused deputy" attack). google-auth-library
+        // fetches and caches Google's signing keys and checks exp/iss for us.
+        const oauthClient = new OAuth2Client(env.GOOGLE_CLIENT_ID);
+        let ticketPayload: TokenPayload | undefined;
+        try {
+            const ticket = await oauthClient.verifyIdToken({ idToken, audience: env.GOOGLE_CLIENT_ID });
+            ticketPayload = ticket.getPayload();
+        } catch {
+            throw new UnauthorizedError("Invalid Google credential");
+        }
+        if (!ticketPayload?.sub) throw new UnauthorizedError("Invalid Google profile");
+        if (!ticketPayload.email || ticketPayload.email_verified !== true) {
+            throw new UnauthorizedError("Google account email is not verified");
+        }
 
-        // 2) Fetch the profile with the validated token.
-        const uiRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!uiRes.ok) throw new Error("Could not load Google profile");
-        const u = (await uiRes.json()) as { sub?: string; email?: string; email_verified?: boolean; name?: string; picture?: string };
-        if (!u.sub) throw new Error("Invalid Google profile");
-        if (!u.email || u.email_verified !== true) throw new Error("Google account email is not verified");
-
-        const googleId = u.sub;
-        const email = u.email.toLowerCase();
-        const fullName = u.name || email.split("@")[0]!;
-        const avatarUrl = u.picture ?? null;
+        const googleId = ticketPayload.sub;
+        const email = ticketPayload.email.toLowerCase();
+        const fullName = ticketPayload.name || email.split("@")[0]!;
+        const avatarUrl = ticketPayload.picture ?? null;
 
         // 1) Existing Google-linked account → sign in.
         const byGoogle = await db.select().from(usersTable).where(eq(usersTable.googleId, googleId));

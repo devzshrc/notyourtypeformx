@@ -114,7 +114,7 @@ export const authRouter = router({
         .input(signInWithGoogleInputModel)
         .output(signInWithGoogleOutputModel)
         .mutation(async ({ input, ctx }) => {
-            const { id, token } = await userService.signInWithGoogle({ accessToken: input.accessToken });
+            const { id, token } = await userService.signInWithGoogle({ idToken: input.idToken });
             ctx.setCookie("token", token, AUTH_COOKIE_OPTIONS);
             return { id };
         }),
