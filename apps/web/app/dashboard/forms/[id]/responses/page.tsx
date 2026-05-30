@@ -30,7 +30,7 @@ const statCardVariants: Variants = {
 const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 
 function formatValue(v: unknown): string {
-    if (v === undefined || v === null || v === "") return "—";
+    if (v === undefined || v === null || v === "") return "-";
     if (Array.isArray(v)) return v.join(", ");
     return String(v);
 }
@@ -61,21 +61,14 @@ export default function ResponsesPage() {
         offset: page * PAGE_SIZE,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        search: search.trim() || undefined,
     });
 
     const cols = fields ?? [];
     const totalPages = Math.ceil(total / PAGE_SIZE);
 
-    const filteredSubmissions = search.trim()
-        ? (submissions ?? []).filter((sub) => {
-              const haystack = Object.values((sub.data ?? {}) as Record<string, unknown>)
-                  .map((v) => (Array.isArray(v) ? v.join(" ") : String(v ?? "")))
-                  .join(" ")
-                  .toLowerCase();
-              return haystack.includes(search.toLowerCase());
-          })
-        : (submissions ?? []);
-    const hasScore = (submissions ?? []).some((s) => (s.data as Record<string, unknown>)?.__score != null);
+    const rows = submissions ?? [];
+    const hasScore = rows.some((s) => (s.data as Record<string, unknown>)?.__score != null);
 
     const SUMMARY_TYPES = ["MULTIPLE_CHOICE", "CHECKBOXES", "DROPDOWN", "YES_NO", "RATING"];
     const summaries = cols
@@ -173,7 +166,7 @@ export default function ResponsesPage() {
                                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} className="text-muted-foreground" />
                                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
                                 <Tooltip contentStyle={{ fontSize: 12 }} />
-                                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.1} strokeWidth={2} />
+                                <Area type="monotone" dataKey="count" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.1} strokeWidth={2} />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -184,7 +177,7 @@ export default function ResponsesPage() {
                     <Input
                         placeholder="Search responses..."
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setPage(0); }}
                         className="w-56"
                     />
                     <div className="flex items-center gap-2">
@@ -231,7 +224,7 @@ export default function ResponsesPage() {
                     <>
                         {search && (
                             <p className="text-sm text-muted-foreground">
-                                {filteredSubmissions.length} of {submissions.length} results match &ldquo;{search}&rdquo;
+                                {total} result{total !== 1 ? "s" : ""} match &ldquo;{search}&rdquo;
                             </p>
                         )}
                         <div className="overflow-x-auto rounded-lg border border-border">
@@ -244,7 +237,7 @@ export default function ResponsesPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredSubmissions.map((sub) => {
+                                    {rows.map((sub) => {
                                         const data = (sub.data ?? {}) as Record<string, unknown>;
                                         return (
                                             <TableRow key={sub.id}>

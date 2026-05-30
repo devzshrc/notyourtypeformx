@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSignin, useUser } from "~/hooks/api/auth";
+import { useSignin, useUser, safeRedirect } from "~/hooks/api/auth";
 import { GoogleAuthButton } from "~/components/auth/google-button";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -55,13 +55,12 @@ function SigninContent() {
         e.preventDefault();
         try {
             await signInUserWithEmailAndPasswordAsync({ email, password });
-            const redirect = searchParams.get("redirect");
-            router.push(redirect && redirect.startsWith("/") ? redirect : "/dashboard");
+            router.replace(safeRedirect(searchParams.get("redirect")));
         } catch { /* error shown inline */ }
     };
 
     return (
-        <main className="flex min-h-screen bg-background">
+        <main className="flex min-h-[100dvh] bg-background">
             {/* Left panel */}
             <SlideIn direction="left" className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-primary/5 p-12 lg:flex">
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent" />
@@ -77,12 +76,12 @@ function SigninContent() {
                             animate={{ y: [0, -6, 0] }}
                             transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
                             style={{ willChange: "transform" }}
-                            className="pointer-events-none absolute -bottom-20 -right-20 size-80 rounded-full bg-violet-500/10 blur-3xl"
+                            className="pointer-events-none absolute -bottom-20 -right-20 size-80 rounded-full bg-foreground/[0.06] blur-3xl"
                         />
                     </>
                 )}
                 <Link href="/" className="relative z-10">
-                    <span className="text-2xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    <span className="text-2xl font-semibold tracking-tight">
                         Schema
                     </span>
                 </Link>
@@ -90,7 +89,7 @@ function SigninContent() {
                     <blockquote className="text-lg font-medium leading-relaxed text-foreground/80">
                         &ldquo;Build forms that people actually want to fill.&rdquo;
                     </blockquote>
-                    <p className="text-sm text-muted-foreground">AI-powered · Beautiful themes · Real-time analytics</p>
+                    <p className="text-sm text-muted-foreground">AI-powered, beautiful themes, real-time analytics</p>
                 </div>
             </SlideIn>
 
@@ -98,7 +97,7 @@ function SigninContent() {
             <SlideIn direction="right" className="flex flex-1 flex-col items-center justify-center px-6 py-12">
                 <div className="w-full max-w-sm">
                     <div className="mb-8">
-                        <Link href="/" className="text-xl font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent lg:hidden">
+                        <Link href="/" className="text-xl font-semibold tracking-tight lg:hidden">
                             Schema
                         </Link>
                         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Welcome back</h1>

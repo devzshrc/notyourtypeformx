@@ -8,7 +8,8 @@ import { cookies } from "next/headers";
  */
 
 const COOKIE_NAME = "has_session";
-const MAX_AGE = 30 * 24 * 60 * 60; // 30 days, matches JWT expiry
+// Must match the JWT/auth-cookie lifetime on the API (7 days). Keep in sync.
+const MAX_AGE = 7 * 24 * 60 * 60;
 
 export async function POST() {
   const jar = await cookies();

@@ -1,9 +1,13 @@
 import { z } from "zod";
 
 export const createUserWithEmailAndPasswordInputModel = z.object({
-    fullName: z.string().describe("Name of the user"),
+    fullName: z.string().min(1).max(100).describe("Name of the user"),
     email: z.email().describe("Email of the user"),
-    password: z.string().describe("Password of the user"),
+    password: z
+        .string()
+        .min(8, "Password must be at least 8 characters")
+        .max(128, "Password is too long")
+        .describe("Password of the user"),
 });
 
 export const createUserWithEmailAndPasswordOutputModel = z.object({
@@ -12,7 +16,7 @@ export const createUserWithEmailAndPasswordOutputModel = z.object({
 
 export const signInUserWithEmailAndPasswordInputModel = z.object({
     email: z.email().describe("Email of the user"),
-    password: z.string().describe("password of the user"),
+    password: z.string().min(1).max(128).describe("password of the user"),
 });
 
 export const signInUserWithEmailAndPasswordOutputModel = z.object({

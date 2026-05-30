@@ -128,7 +128,7 @@ export function useSubmitForm() {
     return { submitFormAsync: mutation.mutateAsync, isPending: mutation.isPending, error: mutation.error, isSuccess: mutation.isSuccess };
 }
 
-export function useListSubmissions(formId: string, opts?: { limit?: number; offset?: number; startDate?: string; endDate?: string }) {
+export function useListSubmissions(formId: string, opts?: { limit?: number; offset?: number; startDate?: string; endDate?: string; search?: string }) {
     const { data, error, isLoading } = trpc.submission.listSubmissions.useQuery({ formId, ...opts }, { enabled: isValidUUID(formId) });
     return { submissions: data?.rows, total: data?.total ?? 0, error, isLoading };
 }

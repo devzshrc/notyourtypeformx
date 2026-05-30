@@ -1,4 +1,14 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "~/trpc/client";
+
+/**
+ * Whitelist post-auth redirect targets to same-origin relative paths only.
+ * Rejects absolute URLs and protocol-relative `//evil.com` (open-redirect → phishing).
+ */
+export function safeRedirect(raw: string | null | undefined): string {
+    if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+    return "/dashboard";
+}
 
 /** Set the web-domain session marker so middleware allows /dashboard access. */
 async function markSession() {
@@ -112,11 +122,15 @@ export function useUser() {
 }
 
 export function useLogout() {
-    const utils = trpc.useUtils();
+    const queryClient = useQueryClient();
     const mutation = trpc.auth.logout.useMutation({
-        onSuccess: async () => {
+        // Runs even if the API logout fails (e.g. token already expired) so the UI
+        // never gets stuck "logged in". Wipe the entire query cache — the global
+        // client uses staleTime: Infinity, so a stale user/dashboard would otherwise
+        // linger until a hard refresh, and switching accounts would show prior data.
+        onSettled: async () => {
             await clearSession();
-            utils.auth.getLoggedInUserInfo.setData(undefined, undefined);
+            queryClient.clear();
         },
     });
     return { logoutAsync: mutation.mutateAsync, isPending: mutation.isPending };

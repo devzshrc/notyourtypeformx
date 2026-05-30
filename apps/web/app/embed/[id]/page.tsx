@@ -1,39 +1,23 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { useGetPublicForm } from "~/hooks/api/form";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-export default function EmbedFormPage() {
-    const { id } = useParams<{ id: string }>();
-    const { form, isLoading, error } = useGetPublicForm(id);
-    const containerRef = useRef<HTMLDivElement>(null);
+/**
+ * Back-compat redirect. Embeds now point directly at /form/[id]?embed=1
+ * (the form page posts its own resize height), avoiding a nested iframe.
+ */
+export default function EmbedRedirect() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-    // Post height to parent for auto-resize
-    useEffect(() => {
-        const sendHeight = () => {
-            if (containerRef.current) {
-                window.parent.postMessage({ type: "schema-form-resize", height: containerRef.current.scrollHeight }, "*");
-            }
-        };
-        sendHeight();
-        const observer = new ResizeObserver(sendHeight);
-        if (containerRef.current) observer.observe(containerRef.current);
-        return () => observer.disconnect();
-    }, [form]);
+  useEffect(() => {
+    if (id) router.replace(`/form/${id}?embed=1`);
+  }, [id, router]);
 
-    if (isLoading) return <div style={{ padding: 24, textAlign: "center", color: "#888" }}>Loading...</div>;
-    if (error || !form) return <div style={{ padding: 24, textAlign: "center", color: "#888" }}>Form not found</div>;
-
-    // Redirect to the full form page in an embedded context
-    // The form/[id] page already handles rendering — we just iframe it
-    return (
-        <div ref={containerRef} style={{ width: "100%", minHeight: "100vh" }}>
-            <iframe
-                src={`/form/${id}?embed=1`}
-                style={{ width: "100%", height: "100vh", border: "none" }}
-                title={form.title ?? "Form"}
-            />
-        </div>
-    );
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background text-sm text-muted-foreground">
+      Loading form
+    </div>
+  );
 }

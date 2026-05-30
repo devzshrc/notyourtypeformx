@@ -15,26 +15,24 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/components/ui/tooltip";
 import { Plus, Users, Trash2, Copy, CheckCircle, Link as LinkIcon, LogOut, AlertCircle, FileText, Settings, ArrowLeft, PencilLine, Eye, Shield, Crown, Edit3, EyeIcon, Loader2 } from "~/components/icons";
+import { Monogram } from "~/components/ui/monogram";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function robohash(email: string, size = 80) {
-    return `https://robohash.org/${encodeURIComponent(email)}?size=${size}x${size}&set=set4`;
-}
-
 function canManageMembers(role: string) { return role === "OWNER" || role === "ADMIN"; }
 
+// Roles are distinguished by icon shape, not color (monochrome palette).
 function roleIcon(role: string) {
-    if (role === "OWNER") return <Crown className="size-3 text-amber-500" />;
-    if (role === "ADMIN") return <Shield className="size-3 text-teal-500" />;
-    if (role === "EDITOR") return <Edit3 className="size-3 text-green-500" />;
+    if (role === "OWNER") return <Crown className="size-3 text-foreground" />;
+    if (role === "ADMIN") return <Shield className="size-3 text-foreground" />;
+    if (role === "EDITOR") return <Edit3 className="size-3 text-foreground" />;
     return <EyeIcon className="size-3 text-muted-foreground" />;
 }
 
 function roleColor(role: string) {
-    if (role === "OWNER") return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
-    if (role === "ADMIN") return "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20";
-    if (role === "EDITOR") return "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20";
+    if (role === "OWNER") return "bg-foreground text-background border-transparent";
+    if (role === "ADMIN") return "bg-secondary text-secondary-foreground border-border";
+    if (role === "EDITOR") return "bg-muted text-foreground border-border";
     return "bg-muted text-muted-foreground border-border";
 }
 
@@ -196,7 +194,7 @@ function WorkspaceCard({ workspace, onClick }: { workspace: { id: string; name: 
                 {members && members.length > 0 && (
                     <div className="flex -space-x-2">
                         {members.slice(0, 4).map((m) => (
-                            <Image key={m.id} src={robohash(m.email)} alt={m.fullName ?? ""} width={24} height={24} className="size-6 rounded-full border-2 border-card bg-muted" unoptimized />
+                            <Monogram key={m.id} name={m.fullName || m.email} className="size-6 border-2 border-card text-[10px]" />
                         ))}
                         {members.length > 4 && (
                             <div className="flex size-6 items-center justify-center rounded-full border-2 border-card bg-muted text-[10px] font-medium text-muted-foreground">
@@ -299,13 +297,12 @@ function WorkspaceForms({ workspaceId }: { workspaceId: string }) {
                 return (
                     <div key={form.id} className="group flex items-center justify-between rounded-xl border border-border/60 px-4 py-3.5 transition-all hover:border-primary/30 hover:shadow-sm">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${isLive ? "bg-green-500/10" : "bg-muted/60"}`}>
-                                <FileText className={`size-3.5 ${isLive ? "text-green-600" : "text-muted-foreground"}`} />
+                            <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${isLive ? "bg-primary/10" : "bg-muted/60"}`}>
+                                <FileText className={`size-3.5 ${isLive ? "text-primary" : "text-muted-foreground"}`} />
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                     <h3 className="text-sm font-medium truncate">{form.title}</h3>
-                                    <div className={`size-1.5 shrink-0 rounded-full ${isLive ? "bg-green-500" : "bg-muted-foreground/30"}`} />
                                     <Badge variant={isLive ? "default" : "secondary"} className="text-[10px] py-0 px-1.5">
                                         {isLive ? "Live" : "Draft"}
                                     </Badge>
@@ -360,10 +357,10 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
         <div className="space-y-5">
             {/* Permission legend */}
             <div className="flex flex-wrap gap-3 rounded-lg bg-muted/30 px-4 py-2.5">
-                <span className="flex items-center gap-1.5 text-xs"><Crown className="size-3 text-amber-500" />Owner — Full control</span>
-                <span className="flex items-center gap-1.5 text-xs"><Shield className="size-3 text-teal-500" />Admin — Manage members</span>
-                <span className="flex items-center gap-1.5 text-xs"><Edit3 className="size-3 text-green-500" />Editor — Edit forms</span>
-                <span className="flex items-center gap-1.5 text-xs"><EyeIcon className="size-3 text-muted-foreground" />Viewer — View only</span>
+                <span className="flex items-center gap-1.5 text-xs"><Crown className="size-3 text-foreground" />Owner: full control</span>
+                <span className="flex items-center gap-1.5 text-xs"><Shield className="size-3 text-foreground" />Admin: manage members</span>
+                <span className="flex items-center gap-1.5 text-xs"><Edit3 className="size-3 text-foreground" />Editor: edit forms</span>
+                <span className="flex items-center gap-1.5 text-xs"><EyeIcon className="size-3 text-muted-foreground" />Viewer: view only</span>
             </div>
 
             {/* Invite form */}
@@ -393,7 +390,7 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
                 {members?.map((m) => (
                     <div key={m.id} className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/20">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <Image src={robohash(m.email)} alt="" width={36} height={36} className="size-9 rounded-full bg-muted ring-2 ring-background" unoptimized />
+                            <Monogram name={m.fullName || m.email} className="size-9 text-xs ring-2 ring-background" />
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium truncate">{m.fullName}</p>
                                 <p className="text-xs text-muted-foreground truncate">{m.email}</p>
@@ -409,8 +406,8 @@ function WorkspaceMembers({ workspaceId, role }: { workspaceId: string; role: st
                                     <Select value={m.role} onValueChange={(v) => updateMemberRoleAsync({ workspaceId, memberId: m.id, role: v as "ADMIN" | "EDITOR" | "VIEWER" })}>
                                         <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="ADMIN"><span className="flex items-center gap-1.5"><Shield className="size-3 text-teal-500" />Admin</span></SelectItem>
-                                            <SelectItem value="EDITOR"><span className="flex items-center gap-1.5"><Edit3 className="size-3 text-green-500" />Editor</span></SelectItem>
+                                            <SelectItem value="ADMIN"><span className="flex items-center gap-1.5"><Shield className="size-3 text-foreground" />Admin</span></SelectItem>
+                                            <SelectItem value="EDITOR"><span className="flex items-center gap-1.5"><Edit3 className="size-3 text-foreground" />Editor</span></SelectItem>
                                             <SelectItem value="VIEWER"><span className="flex items-center gap-1.5"><EyeIcon className="size-3 text-muted-foreground" />Viewer</span></SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -552,15 +549,15 @@ function InviteLinkDisplay({ token }: { token: string }) {
     };
 
     return (
-        <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+        <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <CheckCircle className="size-3.5" /> Invite link ready
             </div>
             <p className="text-xs text-muted-foreground">Share this link with your teammate. It expires in 7 days.</p>
             <div className="flex gap-2">
                 <Input readOnly value={inviteUrl} className="text-xs font-mono h-8 flex-1 select-all bg-background" onFocus={(e) => e.target.select()} />
                 <Button size="sm" variant="outline" className="h-8 shrink-0 gap-1.5" onClick={handleCopy}>
-                    {copied ? <CheckCircle className="size-3.5 text-green-500" /> : <Copy className="size-3.5" />}
+                    {copied ? <CheckCircle className="size-3.5 text-foreground" /> : <Copy className="size-3.5" />}
                     {copied ? "Copied!" : "Copy"}
                 </Button>
             </div>
@@ -582,7 +579,7 @@ function PendingInvitations({ workspaceId }: { workspaceId: string }) {
             {invitations.map((inv) => (
                 <div key={inv.id} className="flex items-center justify-between rounded-xl border border-dashed border-border/60 px-4 py-2.5">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Image src={robohash(inv.email)} alt="" width={28} height={28} className="size-7 rounded-full bg-muted opacity-40" unoptimized />
+                        <Monogram name={inv.email} className="size-7 text-[10px] opacity-50" />
                         <div className="min-w-0 flex-1">
                             <p className="text-sm truncate">{inv.email}</p>
                             <p className="text-xs text-muted-foreground">

@@ -11,6 +11,12 @@ import { env } from "../env";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
+// One boot-time warning instead of a per-send log, so a missing key is obvious in
+// prod startup logs rather than buried in request noise.
+if (!resend) {
+    console.warn("[email] RESEND_API_KEY not set — all emails will be skipped (logged only).");
+}
+
 export interface SendEmailOptions {
     to: string | string[];
     subject: string;
@@ -38,7 +44,11 @@ export async function sendEmail(opts: SendEmailOptions): Promise<{ id: string } 
             idempotencyKey ? { idempotencyKey } : undefined,
         );
         if (error) {
-            console.error(`[email failed] "${subject}":`, error.message);
+            // Surface name + recipient so restricted-sender / validation failures are
+            // greppable. The shared `onboarding@resend.dev` sender only delivers to the
+            // Resend account owner — verify a real domain and set EMAIL_FROM to fix.
+            const dest = Array.isArray(to) ? to.join(", ") : to;
+            console.error(`[email failed] "${subject}" → ${dest} [${error.name}]: ${error.message}`);
             return null;
         }
         return data ? { id: data.id } : null;

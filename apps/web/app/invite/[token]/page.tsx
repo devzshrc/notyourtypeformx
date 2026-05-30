@@ -32,7 +32,7 @@ export default function AcceptInvitePage() {
     // Loading user state
     if (userLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-background">
+            <div className="flex min-h-[100dvh] items-center justify-center bg-background">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
         );
@@ -42,7 +42,7 @@ export default function AcceptInvitePage() {
     if (!user?.id) {
         const returnPath = encodeURIComponent(`/invite/${token}`);
         return (
-            <div className="flex min-h-screen items-center justify-center bg-background p-4">
+            <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
                 <Card className="w-full max-w-sm">
                     <CardHeader className="text-center pb-4">
                         <Users className="mx-auto size-10 text-primary mb-3" />
@@ -66,10 +66,10 @@ export default function AcceptInvitePage() {
 
     // Logged in — show accept UI
     return (
-        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
             <Card className="w-full max-w-sm">
                 <CardHeader className="text-center pb-4">
-                    {status === "success" && <CheckCircle className="mx-auto size-10 text-green-500 mb-3" />}
+                    {status === "success" && <CheckCircle className="mx-auto size-10 text-foreground mb-3" />}
                     {status === "error" && <AlertCircle className="mx-auto size-10 text-destructive mb-3" />}
                     {status === "idle" && <Users className="mx-auto size-10 text-primary mb-3" />}
                     <CardTitle className="text-xl">

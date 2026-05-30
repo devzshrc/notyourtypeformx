@@ -20,19 +20,38 @@ import {
 import { userService } from "../../services";
 import { generatePath } from "../../utils/path-generator";
 import { signInUserWithEmailAndPassword } from "@repo/services/user/model";
+import { env } from "@repo/services/env";
 import type { CookieOptions } from "express";
 
 const getPath = generatePath("/authentication");
 const TAGS = ["Authentication"];
 
-const isProd = process.env.NODE_ENV === "production";
+const isProd = env.NODE_ENV === "production";
+
+// SameSite=None mandates Secure (browsers reject otherwise). Force it on when the
+// deployment is cross-site, regardless of NODE_ENV.
+const sameSite = env.COOKIE_SAMESITE;
+const secure = isProd || sameSite === "none";
+
+// 7d — matches the JWT lifetime in user/index.ts and the web has_session marker.
+const AUTH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const AUTH_COOKIE_OPTIONS: CookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    secure,
+    sameSite,
+    domain: env.COOKIE_DOMAIN,
     path: "/",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    maxAge: AUTH_MAX_AGE_MS,
+};
+
+// Same attributes minus maxAge — must match for the browser to clear the cookie.
+const CLEAR_COOKIE_OPTIONS: CookieOptions = {
+    httpOnly: true,
+    secure,
+    sameSite,
+    domain: env.COOKIE_DOMAIN,
+    path: "/",
 };
 
 // url will be seen like /authentication/createUserWithEmailAndPassword
@@ -113,24 +132,20 @@ export const authRouter = router({
             const user = await userService.getUserInfoById(ctx.user!.id);
             return user;
         }),
-    logout: authenticatedProcedure
+    // Public so an expired/invalid session can still clear its cookie — a logout
+    // gated behind authentication can't sign out a user whose token already lapsed.
+    logout: publicProcedure
         .meta({
             openapi: {
                 method: "POST",
                 path: getPath("/logout"),
                 tags: TAGS,
-                protect: true,
             },
         })
         .input(logoutInputModel)
         .output(logoutOutputModel)
         .mutation(async ({ ctx }) => {
-            ctx.clearCookie("token", {
-                httpOnly: true,
-                secure: isProd,
-                sameSite: isProd ? "none" : "lax",
-                path: "/",
-            });
+            ctx.clearCookie("token", CLEAR_COOKIE_OPTIONS);
             return { success: true };
         }),
 });

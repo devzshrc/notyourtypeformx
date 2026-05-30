@@ -66,7 +66,7 @@ export default class SubmissionService {
     }
 
     public async listSubmissions(payload: ListSubmissionsInputType) {
-        const { formId, userId, limit = 50, offset = 0, startDate, endDate } = await listSubmissionsInput.parseAsync(payload);
+        const { formId, userId, limit = 50, offset = 0, startDate, endDate, search } = await listSubmissionsInput.parseAsync(payload);
         const form = await db
             .select({ id: formsTable.id })
             .from(formsTable)
@@ -75,6 +75,12 @@ export default class SubmissionService {
         const conditions = [eq(submissionsTable.formId, formId)];
         if (startDate) conditions.push(gte(submissionsTable.createdAt, new Date(startDate)));
         if (endDate) conditions.push(lte(submissionsTable.createdAt, new Date(endDate)));
+        const term = search?.trim();
+        if (term) {
+            // Full-text-ish search across the JSON answer payload. Escape ILIKE wildcards in the term.
+            const escaped = term.replace(/[\\%_]/g, (m) => `\\${m}`);
+            conditions.push(sql`CAST(${submissionsTable.data} AS TEXT) ILIKE ${`%${escaped}%`}`);
+        }
         const rows = await db
             .select()
             .from(submissionsTable)

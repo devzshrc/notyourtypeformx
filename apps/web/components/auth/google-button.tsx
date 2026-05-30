@@ -4,7 +4,7 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useGoogleSignIn } from "~/hooks/api/auth";
+import { useGoogleSignIn, safeRedirect } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Loader2 } from "~/components/icons";
 import { env } from "~/env.js";
@@ -40,7 +40,7 @@ function GoogleAuthButtonInner() {
         onSuccess: async (resp) => {
             try {
                 await signInWithGoogleAsync({ accessToken: resp.access_token });
-                router.push(params.get("redirect") || "/dashboard");
+                router.replace(safeRedirect(params.get("redirect")));
             } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Google sign-in failed.");
                 setLoading(false);

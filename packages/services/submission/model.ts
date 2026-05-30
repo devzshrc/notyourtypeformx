@@ -20,6 +20,7 @@ export const listSubmissionsInput = z.object({
     offset: z.number().int().min(0).optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
+    search: z.string().max(200).optional(),
 });
 export type ListSubmissionsInputType = z.infer<typeof listSubmissionsInput>;
 

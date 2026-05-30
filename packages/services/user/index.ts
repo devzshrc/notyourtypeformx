@@ -9,6 +9,7 @@ import {
     type SignInUserWithEmailAndPasswordType,
     signInWithGoogle,
     type SignInWithGoogleType,
+    DUMMY_BCRYPT_HASH,
 } from "./model";
 import { usersTable } from "@repo/database/models/user";
 import { db, eq } from "@repo/database";
@@ -28,7 +29,10 @@ export default class UserService {
     //create token
     private async generateUserToken(payload: GenerateUserTokenPayloadType) {
         const { id } = await generateUserTokenPayload.parseAsync(payload);
-        const token = JWT.sign({ id }, env.JWT_SECRET, { expiresIn: "30d" });
+        // 7d: stateless JWT has no server-side revocation, so keep the blast radius
+        // of a leaked token small. Keep in sync with AUTH_COOKIE_OPTIONS.maxAge and
+        // the has_session marker maxAge on the web app.
+        const token = JWT.sign({ id }, env.JWT_SECRET, { expiresIn: "7d" });
         return { token };
     }
 
@@ -40,12 +44,16 @@ export default class UserService {
         // if not: create a new user in DB
         //jwt token , we will set it in cookie
         //return
-        const { fullName, email, password } =
-            await createUserWithEmailAndPassword.parseAsync(payload);
+        const parsed = await createUserWithEmailAndPassword.parseAsync(payload);
+        const fullName = parsed.fullName.trim();
+        // Normalize email so lookups, dedupe and the welcome idempotencyKey are
+        // case-insensitive and match the Google path (which also lowercases).
+        const email = parsed.email.trim().toLowerCase();
+        const { password } = parsed;
         //parseAsync is a funcationality of zod that validates for us
         const existingUser = await this.getUserByEmail(email);
         if (existingUser) throw new Error("User with this email already exists");
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 12);
         const result = await db
             .insert(usersTable)
             .values({
@@ -129,18 +137,18 @@ export default class UserService {
     }
 
     public async signInUserWithEmailAndPassword(payload: SignInUserWithEmailAndPasswordType) {
-        const { email, password } = await signInUserWithEmailAndPassword.parseAsync(payload);
+        const parsed = await signInUserWithEmailAndPassword.parseAsync(payload);
+        const email = parsed.email.trim().toLowerCase();
+        const { password } = parsed;
 
+        // Generic error for every failure mode (no such user / OAuth-only account /
+        // wrong password) to prevent account enumeration. Run a bcrypt compare even
+        // when the user is missing to flatten the timing side-channel.
         const existingUser = await this.getUserByEmail(email);
-        if (!existingUser) {
-            throw new Error("User with this email does not exist");
-        }
-        if (!existingUser.passwordHash) {
-            throw new Error("Invalid Authentication method");
-        }
-        const isValid = await bcrypt.compare(password, existingUser.passwordHash);
-        if (!isValid) {
-            throw new Error("Invalid email address or password");
+        const hash = existingUser?.passwordHash ?? DUMMY_BCRYPT_HASH;
+        const isValid = await bcrypt.compare(password, hash);
+        if (!existingUser || !existingUser.passwordHash || !isValid) {
+            throw new Error("Invalid email or password");
         }
         const { token } = await this.generateUserToken({ id: existingUser.id });
 

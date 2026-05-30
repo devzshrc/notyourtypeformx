@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Star, Lock } from "~/components/icons";
+import { ArrowLeft, ArrowRight, Star, Lock, Loader2, AlertCircle, Inbox } from "~/components/icons";
 import { AnimatePresence, motion } from "~/components/motion";
 import { useSwipeable } from "react-swipeable";
 import { useTheme } from "next-themes";
@@ -177,6 +177,22 @@ export default function PublicFormPage() {
         trackMouse: false,
     });
 
+    // Embed auto-resize: when rendered inside a host iframe (?embed=1), post our
+    // real content height to the parent so the iframe can size to fit.
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get("embed") !== "1") return;
+        const post = () => {
+            window.parent.postMessage(
+                { type: "schema-form-resize", height: document.documentElement.scrollHeight },
+                "*",
+            );
+        };
+        post();
+        const ro = new ResizeObserver(post);
+        ro.observe(document.documentElement);
+        return () => ro.disconnect();
+    }, []);
+
     // Global Enter key handler
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
@@ -193,16 +209,26 @@ export default function PublicFormPage() {
 
     if (isLoading) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
-                <p className="text-muted-foreground">Loading form...</p>
+            <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-background px-6 text-foreground">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Loading form</p>
             </main>
         );
     }
 
     if (fetchError || !form) {
         return (
-            <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
-                <p className="text-destructive">Form not found.</p>
+            <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                    <AlertCircle className="size-6 text-muted-foreground" />
+                </div>
+                <div>
+                    <h1 className="text-lg font-semibold">Form not found</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">This form may have been unpublished or the link is incorrect.</p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                    <a href="/">Back to home</a>
+                </Button>
             </main>
         );
     }
@@ -233,7 +259,7 @@ export default function PublicFormPage() {
             }
         };
         return (
-            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <main style={themeVars as React.CSSProperties} className="flex min-h-[100dvh] items-center justify-center bg-background px-6 text-foreground">
                 <div className="w-full max-w-sm space-y-4 text-center">
                     <Lock className="mx-auto size-10 text-muted-foreground" />
                     <h1 className="text-2xl font-semibold">This form is password protected</h1>
@@ -256,7 +282,7 @@ export default function PublicFormPage() {
 
     if (isSuccess || submitted) {
         return (
-            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <main style={themeVars as React.CSSProperties} className="flex min-h-[100dvh] items-center justify-center bg-background px-6 text-foreground">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -295,7 +321,7 @@ export default function PublicFormPage() {
 
     if (hasWelcome && !started) {
         return (
-            <main style={themeVars as React.CSSProperties} className="relative flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
+            <main style={themeVars as React.CSSProperties} className="relative flex min-h-[100dvh] items-center justify-center bg-background px-6 text-foreground">
                 {isDraft && <DraftBanner />}
                 <motion.div
                     initial={{ opacity: 0, y: 24 }}
@@ -327,8 +353,11 @@ export default function PublicFormPage() {
 
     if (fields.length === 0) {
         return (
-            <main style={themeVars as React.CSSProperties} className="flex min-h-screen items-center justify-center bg-background text-foreground">
-                <p className="text-muted-foreground">This form has no questions yet.</p>
+            <main style={themeVars as React.CSSProperties} className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                    <Inbox className="size-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">This form has no questions yet.</p>
             </main>
         );
     }
@@ -575,7 +604,7 @@ export default function PublicFormPage() {
     };
 
     return (
-        <main {...swipeHandlers} style={themeVars as React.CSSProperties} className="relative flex min-h-screen flex-col bg-background text-foreground">
+        <main {...swipeHandlers} style={themeVars as React.CSSProperties} className="relative flex min-h-[100dvh] flex-col bg-background text-foreground">
             {themeBg && (
                 <div
                     className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"
@@ -666,8 +695,8 @@ const goBackRef: { current: (() => void) | null } = { current: null };
 
 function DraftBanner() {
     return (
-        <div className="absolute left-0 right-0 top-0 z-10 bg-yellow-500/15 py-2 text-center text-xs font-medium text-yellow-600 dark:text-yellow-400">
-            Draft preview — not published. Responses are disabled.
+        <div className="absolute left-0 right-0 top-0 z-10 border-b border-border bg-secondary py-2 text-center text-xs font-medium text-secondary-foreground">
+            Draft preview, not published. Responses are disabled.
         </div>
     );
 }

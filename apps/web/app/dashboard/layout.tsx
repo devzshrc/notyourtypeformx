@@ -7,6 +7,7 @@ import { LayoutDashboard, FileText, LogOut, Building2, LayoutTemplate, Sun, Moon
 import { useTheme } from "next-themes";
 import { useUser, useLogout } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
+import { Monogram } from "~/components/ui/monogram";
 import {
     motion,
     AnimatePresence,
@@ -17,6 +18,10 @@ import {
 } from "~/components/motion";
 import type { CSSProperties } from "react";
 import type { Variants } from "~/components/motion";
+import { Onborda, OnbordaProvider } from "onborda";
+import { TourCard } from "~/components/onborda/tour-card";
+import { tourSteps } from "~/components/onborda/steps";
+import { useOnborda } from "onborda";
 
 // ─── Module-level variants ────────────────────────────────────────────────────
 const avatarVariants: Variants = {
@@ -29,11 +34,25 @@ const WC_OPACITY:   CSSProperties = { willChange: "opacity" };
 const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
 
 const NAV_ITEMS = [
-    { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard },
-    { href: "/dashboard/forms",      label: "Forms",      icon: FileText },
-    { href: "/dashboard/templates",  label: "Templates",  icon: LayoutTemplate },
-    { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2 },
+    { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard, id: "onborda-overview" },
+    { href: "/dashboard/forms",      label: "Forms",      icon: FileText,        id: "onborda-forms" },
+    { href: "/dashboard/templates",  label: "Templates",  icon: LayoutTemplate,  id: "onborda-templates" },
+    { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2,       id: "onborda-workspaces" },
 ];
+
+function OnbordaInit() {
+    const { startOnborda } = useOnborda();
+
+    useEffect(() => {
+        const seen = localStorage.getItem("schema-onboarding-seen");
+        if (!seen) {
+            const timer = setTimeout(() => startOnborda("first-tour"), 600);
+            return () => clearTimeout(timer);
+        }
+    }, [startOnborda]);
+
+    return null;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname   = usePathname();
@@ -55,7 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, [isLoading, user?.id, router, logoutAsync]);
 
     if (isLoading || !user?.id) {
-        return <div className="min-h-screen bg-background" />;
+        return <div className="min-h-[100dvh] bg-background" />;
     }
 
     const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
@@ -66,14 +85,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
 
     return (
-        <div className="flex min-h-screen bg-background">
+        <OnbordaProvider>
+            <Onborda steps={tourSteps} cardComponent={TourCard} cardTransition={{ type: "spring", stiffness: 260, damping: 34, mass: 0.8 }}>
+                <OnbordaInit />
+                <div className="flex min-h-[100dvh] bg-background">
             {/* ── Sidebar ── */}
             <SlideIn direction="left" className="hidden md:flex">
                 <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
                     {/* Logo */}
                     <div className="px-5 py-5">
                         <Link href="/">
-                            <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                            <span className="text-lg font-semibold tracking-tight">
                                 Schema
                             </span>
                         </Link>
@@ -88,6 +110,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 return (
                                     <StaggerItem key={item.href}>
                                         <Link
+                                            id={item.id}
                                             href={item.href}
                                             className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                                                 active
@@ -132,13 +155,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 whileHover="hover"
                                 variants={avatarVariants}
                                 style={WC_TRANSFORM}
-                                className="flex size-8 shrink-0 cursor-default items-center justify-center overflow-hidden rounded-full bg-primary/15"
+                                className="shrink-0 cursor-default"
                             >
-                                <img
-                                    src={`https://robohash.org/${encodeURIComponent(user?.email ?? "user")}?size=32x32`}
-                                    alt="avatar"
-                                    className="size-full"
-                                />
+                                <Monogram name={user?.email ?? "user"} className="size-8 text-xs" />
                             </motion.div>
                             <p className="min-w-0 flex-1 truncate text-xs text-sidebar-foreground/60">{user?.email}</p>
                         </div>
@@ -155,6 +174,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 className="size-8 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground"
                                 onClick={toggleTheme}
                                 aria-label="Toggle theme"
+                                id="onborda-theme"
                             >
                                 {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
                             </Button>
@@ -166,16 +186,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Mobile header ── */}
             <div className="flex flex-1 flex-col min-w-0">
                 <header className="flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-sm md:hidden">
-                    <Link href="/" className="text-lg font-bold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                    <Link href="/" className="text-lg font-semibold tracking-tight">
                         Schema
                     </Link>
                     <div className="flex items-center gap-1">
-                        {NAV_ITEMS.map((item) => (
-                            <Link key={item.href} href={item.href} aria-label={item.label} title={item.label} className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
-                                <item.icon className="size-5" />
-                            </Link>
-                        ))}
-                        <Button variant="ghost" size="icon" className="size-9" onClick={handleLogout}><LogOut className="size-4" /></Button>
+                        {NAV_ITEMS.map((item) => {
+                            const active = pathname === item.href ||
+                                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    aria-label={item.label}
+                                    aria-current={active ? "page" : undefined}
+                                    title={item.label}
+                                    className={`rounded-lg p-2 transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                                >
+                                    <item.icon className="size-5" />
+                                </Link>
+                            );
+                        })}
+                        <Button variant="ghost" size="icon" className="size-9" onClick={handleLogout} aria-label="Sign out"><LogOut className="size-4" /></Button>
                     </div>
                 </header>
 
@@ -196,5 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </AnimatePresence>
             </div>
         </div>
+            </Onborda>
+        </OnbordaProvider>
     );
 }

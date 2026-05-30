@@ -163,7 +163,7 @@ export default function DashboardForms() {
                                             className="min-h-28 resize-none"
                                             disabled={generating}
                                         />
-                                        <p className="text-xs text-muted-foreground">Be specific — mention the purpose, audience, and any key questions you want included.</p>
+                                        <p className="text-xs text-muted-foreground">Be specific. Mention the purpose, audience, and any key questions you want included.</p>
                                     </div>
                                     {aiError && <p className="text-sm text-destructive" role="alert">{aiError.message}</p>}
                                     <DialogFooter>
@@ -282,7 +282,6 @@ function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, worksp
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             <h2 className="truncate text-sm font-semibold">{form.title}</h2>
-                            <div className={`flex size-1.5 shrink-0 rounded-full ${isLive ? "bg-green-500" : "bg-muted-foreground/40"}`} />
                             <Badge variant={isLive ? "default" : "secondary"} className="shrink-0 text-xs py-0">
                                 {isLive ? "Live" : "Draft"}
                             </Badge>

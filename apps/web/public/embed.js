@@ -8,7 +8,7 @@
         script.parentNode.insertBefore(container, script);
 
         var iframe = document.createElement('iframe');
-        iframe.src = script.src.replace('/embed.js', '/embed/' + formId);
+        iframe.src = script.src.replace('/embed.js', '/form/' + formId + '?embed=1');
         iframe.style.width = '100%';
         iframe.style.border = 'none';
         iframe.style.minHeight = '400px';
