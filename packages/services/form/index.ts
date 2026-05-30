@@ -161,7 +161,7 @@ export default class FormService {
     }
 
     public async updateForm(payload: UpdateFormInputType) {
-        const { formId, userId, title, description, welcomeTitle, welcomeDescription, endingTitle, endingDescription, status, visibility, isTemplate, hiddenFields, expiresAt, maxResponses, password, theme, redirectUrl } = await updateFormInput.parseAsync(payload);
+        const { formId, userId, title, description, welcomeTitle, welcomeDescription, endingTitle, endingDescription, status, visibility, isTemplate, hiddenFields, expiresAt, maxResponses, password, theme, redirectUrl, notifyEmail, webhookUrl, closedMessage } = await updateFormInput.parseAsync(payload);
         await assertFormWriteAccess(formId, userId);
         const updates: Record<string, unknown> = {};
         if (title !== undefined) updates.title = title;
@@ -179,6 +179,9 @@ export default class FormService {
         if (password !== undefined) updates.password = password ? await bcrypt.hash(password, 10) : null;
         if (theme !== undefined) updates.theme = theme;
         if (redirectUrl !== undefined) updates.redirectUrl = redirectUrl;
+        if (notifyEmail !== undefined) updates.notifyEmail = notifyEmail;
+        if (webhookUrl !== undefined) updates.webhookUrl = webhookUrl;
+        if (closedMessage !== undefined) updates.closedMessage = closedMessage;
         if (Object.keys(updates).length === 0) throw new Error("Nothing to update");
         const result = await db.update(formsTable).set(updates).where(eq(formsTable.id, formId)).returning({ id: formsTable.id });
         if (!result?.[0]) throw new Error("Form not found");

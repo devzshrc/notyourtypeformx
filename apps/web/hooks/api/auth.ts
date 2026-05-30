@@ -11,7 +11,7 @@ export function safeRedirect(raw: string | null | undefined): string {
 }
 
 /** Set the web-domain session marker so middleware allows /dashboard access. */
-async function markSession() {
+export async function markSession() {
     await fetch("/api/auth/session", { method: "POST" });
 }
 

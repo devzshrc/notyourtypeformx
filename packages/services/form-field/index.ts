@@ -42,6 +42,7 @@ export default class FormFieldService {
                 type: data.type,
                 logic: data.logic ?? null,
                 scores: data.scores ?? null,
+                validation: data.validation ?? null,
             })
             .returning({ id: formsFieldsTable.id });
         if (!result?.[0]) throw new Error("Failed to add field");
@@ -84,6 +85,7 @@ export default class FormFieldService {
         if (fields.type !== undefined) updates.type = fields.type;
         if (fields.logic !== undefined) updates.logic = fields.logic;
         if (fields.scores !== undefined) updates.scores = fields.scores;
+        if (fields.validation !== undefined) updates.validation = fields.validation;
         if (fields.options === undefined && Object.keys(updates).length === 0)
             throw new Error("Nothing to update");
         if (Object.keys(updates).length > 0) {

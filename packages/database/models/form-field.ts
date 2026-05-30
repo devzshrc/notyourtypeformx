@@ -42,6 +42,7 @@ export const formsFieldsTable = pgTable("forms_fields", {
     type: fieldTypeEnum("type").notNull(),
     logic: jsonb("logic").$type<{ equals: string; goTo: string }[]>(),
     scores: jsonb("scores").$type<Record<string, number>>(),
+    validation: jsonb("validation").$type<{ minLength?: number; maxLength?: number; min?: number; max?: number; pattern?: string }>(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
 });

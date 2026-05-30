@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { ArrowLeft, ArrowRight, Star, Lock, Loader2, AlertCircle, Inbox } from "~/components/icons";
 import { AnimatePresence, motion } from "~/components/motion";
 import { useSwipeable } from "react-swipeable";
@@ -59,6 +60,7 @@ type Field = {
     options: string[];
     logic: { equals: string; goTo: string }[] | null;
     scores: Record<string, number> | null;
+    validation: { minLength?: number; maxLength?: number; min?: number; max?: number; pattern?: string } | null;
 };
 
 function pipe(text: string, data: Record<string, AnswerValue>): string {
@@ -89,6 +91,21 @@ function validateField(field: Field, value: AnswerValue | undefined): string | n
     if (field.type === "EMAIL" && !EMAIL_RE.test(s)) return "Enter a valid email address.";
     if (field.type === "NUMBER" && Number.isNaN(Number(s))) return "Enter a valid number.";
     if (field.type === "WEBSITE" && !URL_RE.test(s)) return "Enter a valid URL (https://...).";
+    // Custom per-field rules
+    const v = field.validation;
+    if (v && typeof value === "string") {
+        const len = s.length;
+        if (v.minLength != null && len < v.minLength) return `Must be at least ${v.minLength} characters.`;
+        if (v.maxLength != null && len > v.maxLength) return `Must be at most ${v.maxLength} characters.`;
+        if (field.type === "NUMBER") {
+            const n = Number(s);
+            if (v.min != null && n < v.min) return `Must be ${v.min} or more.`;
+            if (v.max != null && n > v.max) return `Must be ${v.max} or less.`;
+        }
+        if (v.pattern) {
+            try { if (!new RegExp(v.pattern).test(s)) return "Invalid format."; } catch { /* ignore bad regex */ }
+        }
+    }
     return null;
 }
 
@@ -124,6 +141,10 @@ export default function PublicFormPage() {
     const [fieldError, setFieldError] = useState<string | null>(null);
     const [submitted, setSubmitted] = useState(false);
     const [showResume, setShowResume] = useState(false);
+    // Anti-spam: hidden honeypot input + min fill time. Bots fill hidden fields and
+    // submit instantly; real users don't touch the honeypot and take >2s.
+    const [honeypot, setHoneypot] = useState("");
+    const mountTimeRef = useRef(Date.now());
 
     const draftKey = `schema-draft-${formId}`;
 
@@ -227,7 +248,7 @@ export default function PublicFormPage() {
                     <p className="mt-1 text-sm text-muted-foreground">This form may have been unpublished or the link is incorrect.</p>
                 </div>
                 <Button asChild variant="outline" size="sm">
-                    <a href="/">Back to home</a>
+                    <Link href="/">Back to home</Link>
                 </Button>
             </main>
         );
@@ -416,6 +437,13 @@ export default function PublicFormPage() {
         }
         const next = resolveNext();
         if (next === "END" || next >= fields.length) {
+            // Bot heuristics: honeypot filled, or form completed implausibly fast.
+            // Show the success screen but never hit the API — silently discards spam.
+            if (honeypot.trim() !== "" || Date.now() - mountTimeRef.current < 2000) {
+                try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+                setSubmitted(true);
+                return;
+            }
             const hasScores = fields.some((f) => f.scores);
             const payload = hasScores ? { ...formData, __score: String(computeScore(formData)) } : formData;
             try {
@@ -605,6 +633,17 @@ export default function PublicFormPage() {
 
     return (
         <main {...swipeHandlers} style={themeVars as React.CSSProperties} className="relative flex min-h-[100dvh] flex-col bg-background text-foreground">
+            {/* Honeypot — hidden from users, tempting to bots. aria-hidden + off-screen. */}
+            <input
+                type="text"
+                name="company_website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                className="pointer-events-none absolute -left-[9999px] size-0 opacity-0"
+            />
             {themeBg && (
                 <div
                     className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat opacity-10"

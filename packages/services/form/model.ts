@@ -54,6 +54,24 @@ export const updateFormInput = z.object({
         )
         .nullable()
         .optional(),
+    notifyEmail: z.string().email().max(200).nullable().optional(),
+    webhookUrl: z
+        .string()
+        .max(500)
+        .refine(
+            (u) => {
+                try {
+                    const proto = new URL(u).protocol;
+                    return proto === "http:" || proto === "https:";
+                } catch {
+                    return false;
+                }
+            },
+            { message: "Webhook URL must be a valid http(s) URL" },
+        )
+        .nullable()
+        .optional(),
+    closedMessage: z.string().max(500).nullable().optional(),
 });
 export type UpdateFormInputType = z.infer<typeof updateFormInput>;
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Eye, PencilLine, Copy, Archive, ArchiveRestore, MoreVertical, Sparkles, Loader2, Building2, ArrowRightLeft, FileText, Download } from "~/components/icons";
 import { EmptyState } from "~/components/ui/empty-state";
@@ -54,7 +54,16 @@ const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 
 export default function DashboardForms() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [open, setOpen] = useState(false);
+
+    // Command palette deep-links here with ?new=1 to open the create dialog.
+    useEffect(() => {
+        if (searchParams.get("new") === "1") {
+            setOpen(true);
+            router.replace("/dashboard/forms");
+        }
+    }, [searchParams, router]);
     const [aiOpen, setAiOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [title, setTitle] = useState("");
@@ -115,7 +124,16 @@ export default function DashboardForms() {
 
     const handleArchive = async (formId: string, archive: boolean) => {
         await archiveFormAsync({ formId, archive });
-        toast.success(archive ? "Form archived" : "Form restored");
+        toast.success(archive ? "Form archived" : "Form restored", {
+            action: {
+                label: "Undo",
+                onClick: () => {
+                    archiveFormAsync({ formId, archive: !archive })
+                        .then(() => toast.success(archive ? "Form restored" : "Form archived"))
+                        .catch(() => toast.error("Couldn't undo"));
+                },
+            },
+        });
     };
 
     const handleMove = async (formId: string, workspaceId: string | null) => {

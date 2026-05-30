@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSignin, useUser, safeRedirect } from "~/hooks/api/auth";
+import { useSignin, useUser, safeRedirect, markSession } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -49,8 +49,18 @@ function SigninContent() {
     // Already-/just-authenticated → honor ?redirect (e.g. /invite/{token}), not a hardcoded
     // /dashboard. Must match the post-login redirect in handleSubmit, otherwise this effect
     // races and clobbers an invite redirect.
+    //
+    // Reaching this page while already authenticated means the JWT is valid but the
+    // has_session marker is gone (dev restart, cleared cookie, or a failed markSession at
+    // login). Without re-setting the marker, middleware bounces /dashboard straight back to
+    // /signin → infinite loop. Re-mark, then redirect.
     useEffect(() => {
-        if (!isLoading && user?.id) router.replace(safeRedirect(searchParams.get("redirect")));
+        if (isLoading || !user?.id) return;
+        let cancelled = false;
+        void markSession().finally(() => {
+            if (!cancelled) router.replace(safeRedirect(searchParams.get("redirect")));
+        });
+        return () => { cancelled = true; };
     }, [isLoading, user, router, searchParams]);
 
     if (!isLoading && user?.id) return null;
