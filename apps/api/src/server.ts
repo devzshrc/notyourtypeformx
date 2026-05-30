@@ -75,10 +75,20 @@ app.use(
     }),
 );
 
+// Trusted web origins. WEB_URL may be a comma-separated list (prod + preview deploys).
+// Requests with no Origin (server-to-server, curl, the Next proxy on some methods) are
+// allowed; a present Origin must be on the allowlist.
+const ALLOWED_ORIGINS = new Set(
+    env.WEB_URL.split(",").map((o) => o.trim()).filter(Boolean),
+);
+
 // cors config
 app.use(
     cors({
-        origin: env.WEB_URL,
+        origin(origin, cb) {
+            if (!origin || ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+            return cb(new Error("Origin not allowed by CORS"));
+        },
         credentials: true,
     }),
 );
@@ -94,7 +104,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 app.use((req, res, next) => {
     if (SAFE_METHODS.has(req.method)) return next();
     const origin = req.get("origin");
-    if (origin && origin !== env.WEB_URL) {
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
         return res.status(403).json({ error: "Cross-origin request blocked" });
     }
     next();

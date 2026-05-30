@@ -47,7 +47,12 @@ function SigninContent() {
     const { data: user, isLoading } = useUser();
     const shouldReduce = useReducedMotion();
 
-    useEffect(() => { if (!isLoading && user?.id) router.push("/dashboard"); }, [isLoading, user, router]);
+    // Already-/just-authenticated → honor ?redirect (e.g. /invite/{token}), not a hardcoded
+    // /dashboard. Must match the post-login redirect in handleSubmit + the Google button,
+    // otherwise this effect races and clobbers an invite redirect.
+    useEffect(() => {
+        if (!isLoading && user?.id) router.replace(safeRedirect(searchParams.get("redirect")));
+    }, [isLoading, user, router, searchParams]);
 
     if (!isLoading && user?.id) return null;
 

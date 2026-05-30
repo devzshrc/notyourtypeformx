@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, FileText, Eye, CheckCircle, ArrowRight, Plus, Sparkles } from "~/components/icons";
+import { BarChart3, FileText, Eye, CheckCircle, ArrowRight, Plus } from "~/components/icons";
 import { useAdminStats, useListForms } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
@@ -16,7 +16,6 @@ import {
     type Variants,
 } from "~/components/motion";
 import type { CSSProperties } from "react";
-import { useOnborda } from "onborda";
 
 // ─── Module-level variants ────────────────────────────────────────────────────
 const statCardVariants: Variants = {
@@ -77,7 +76,6 @@ function StatCard({ icon, iconBg, iconColor, label, value }: {
 export default function AdminDashboard() {
     const { stats, isLoading: statsLoading } = useAdminStats();
     const { forms, isLoading: formsLoading } = useListForms();
-    const { startOnborda } = useOnborda();
     const shouldReduce = useReducedMotion();
 
     const recentForms = (forms ?? []).filter((f) => !f.isArchived).slice(0, 5);
@@ -86,7 +84,7 @@ export default function AdminDashboard() {
         <div className="px-6 py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <FadeIn>
-                    <div id="onborda-welcome">
+                    <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
                         <p className="mt-0.5 text-sm text-muted-foreground">Welcome back. Here&apos;s what&apos;s happening with your forms.</p>
                     </div>
@@ -98,7 +96,7 @@ export default function AdminDashboard() {
                         {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
                     </div>
                 ) : stats ? (
-                    <div id="onborda-stats">
+                    <div>
                         <StaggerList className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         <StaggerItem><StatCard icon={<FileText className="size-4" />}    iconBg="bg-primary/15"   iconColor="text-primary"   label="Total Forms"     value={stats.totalForms} /></StaggerItem>
                         <StaggerItem><StatCard icon={<BarChart3 className="size-4" />}   iconBg="bg-primary/15"   iconColor="text-primary"   label="Submissions"     value={stats.totalSubmissions} /></StaggerItem>
@@ -109,7 +107,7 @@ export default function AdminDashboard() {
                 ) : null}
 
                 {/* Recent forms */}
-                <section id="onborda-recent-forms" className="flex flex-col gap-4">
+                <section className="flex flex-col gap-4">
                     <FadeIn delay={0.1}>
                         <div className="flex items-center justify-between">
                             <div>
@@ -185,18 +183,6 @@ export default function AdminDashboard() {
                     )}
                 </section>
             </div>
-
-            {/* Onboarding badge */}
-            <motion.button
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1, type: "spring", stiffness: 260, damping: 34 }}
-                onClick={() => startOnborda("first-tour")}
-                className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-border/60 bg-card px-4 py-2.5 text-xs font-medium text-foreground shadow-lg transition-all hover:border-primary/30 hover:shadow-primary/5 active:scale-[0.97]"
-            >
-                <Sparkles className="size-3.5 text-primary" />
-                Take a product tour
-            </motion.button>
         </div>
     );
 }

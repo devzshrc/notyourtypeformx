@@ -18,10 +18,6 @@ import {
 } from "~/components/motion";
 import type { CSSProperties } from "react";
 import type { Variants } from "~/components/motion";
-import { Onborda, OnbordaProvider } from "onborda";
-import { TourCard } from "~/components/onborda/tour-card";
-import { tourSteps } from "~/components/onborda/steps";
-import { useOnborda } from "onborda";
 
 // ─── Module-level variants ────────────────────────────────────────────────────
 const avatarVariants: Variants = {
@@ -34,25 +30,11 @@ const WC_OPACITY:   CSSProperties = { willChange: "opacity" };
 const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
 
 const NAV_ITEMS = [
-    { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard, id: "onborda-overview" },
-    { href: "/dashboard/forms",      label: "Forms",      icon: FileText,        id: "onborda-forms" },
-    { href: "/dashboard/templates",  label: "Templates",  icon: LayoutTemplate,  id: "onborda-templates" },
-    { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2,       id: "onborda-workspaces" },
+    { href: "/dashboard",            label: "Overview",   icon: LayoutDashboard },
+    { href: "/dashboard/forms",      label: "Forms",      icon: FileText },
+    { href: "/dashboard/templates",  label: "Templates",  icon: LayoutTemplate },
+    { href: "/dashboard/workspaces", label: "Workspaces", icon: Building2 },
 ];
-
-function OnbordaInit() {
-    const { startOnborda } = useOnborda();
-
-    useEffect(() => {
-        const seen = localStorage.getItem("schema-onboarding-seen");
-        if (!seen) {
-            const timer = setTimeout(() => startOnborda("first-tour"), 600);
-            return () => clearTimeout(timer);
-        }
-    }, [startOnborda]);
-
-    return null;
-}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname   = usePathname();
@@ -85,10 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     };
 
     return (
-        <OnbordaProvider>
-            <Onborda steps={tourSteps} cardComponent={TourCard} cardTransition={{ type: "spring", stiffness: 260, damping: 34, mass: 0.8 }}>
-                <OnbordaInit />
-                <div className="flex min-h-[100dvh] bg-background">
+        <div className="flex min-h-[100dvh] bg-background">
             {/* ── Sidebar ── */}
             <SlideIn direction="left" className="hidden md:flex">
                 <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
@@ -110,7 +89,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 return (
                                     <StaggerItem key={item.href}>
                                         <Link
-                                            id={item.id}
                                             href={item.href}
                                             className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                                                 active
@@ -174,7 +152,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 className="size-8 text-sidebar-foreground/60 transition-colors hover:text-sidebar-foreground"
                                 onClick={toggleTheme}
                                 aria-label="Toggle theme"
-                                id="onborda-theme"
                             >
                                 {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
                             </Button>
@@ -227,7 +204,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </AnimatePresence>
             </div>
         </div>
-            </Onborda>
-        </OnbordaProvider>
     );
 }

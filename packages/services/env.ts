@@ -9,7 +9,12 @@ const envSchema = z.object({
     // cross-site CSRF surface); "none" only for true cross-site (requires Secure).
     COOKIE_SAMESITE: z.enum(["lax", "none", "strict"]).default("lax").describe("Auth cookie SameSite policy"),
     // Optional parent domain for cross-subdomain cookie sharing, e.g. ".example.com".
-    COOKIE_DOMAIN: z.string().optional().describe("Auth cookie Domain attribute"),
+    // Empty string → undefined so the cookie stays host-only (no invalid `Domain=`).
+    COOKIE_DOMAIN: z
+        .string()
+        .optional()
+        .transform((v) => (v && v.trim() !== "" ? v : undefined))
+        .describe("Auth cookie Domain attribute"),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     // Email (Resend). Optional — when unset, emails are logged instead of sent so local dev works.
     RESEND_API_KEY: z.string().optional().describe("Resend API key for transactional email"),

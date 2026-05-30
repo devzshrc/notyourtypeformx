@@ -20,6 +20,7 @@
     "./template/model": "./template/model.ts",
     "./common/utils": "./common/utils.ts",
     "./common/access": "./common/access.ts",
+    "./common/errors": "./common/errors.ts",
     "./env": "./env.ts"
   },
   "devDependencies": {
