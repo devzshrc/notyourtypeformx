@@ -16,12 +16,27 @@ export function Hero() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
+  // Only load the (heavy) background video on desktop. Mobile gets a static
+  // dark base instead — no 32 MB download on cellular.
+  const [withVideo, setWithVideo] = useState(false);
 
   useEffect(() => {
     (async () => {
       const cal = await getCalApi();
       cal("ui", { theme: "auto", hideEventTypeDetails: false, layout: "month_view" });
     })();
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const apply = (matches: boolean) => {
+      setWithVideo(matches);
+      if (!matches) setReady(true); // no video to wait on → reveal immediately
+    };
+    apply(mq.matches);
+    const on = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
   }, []);
 
   // Safety: never let the loader stick if the video stalls or errors.
@@ -47,21 +62,25 @@ export function Hero() {
   return (
     <section className="relative isolate -mt-16 overflow-hidden border-b border-border">
       <RamenLoader done={ready} />
-      {/* ambient background clip behind a paper wash so ink text stays readable */}
-      <video
-        ref={videoRef}
-        src="/japan.mp4#t=6"
-        autoPlay
-        muted
-        playsInline
-        preload="auto"
-        tabIndex={-1}
-        aria-hidden
-        onLoadedMetadata={seekStart}
-        onCanPlay={() => setReady(true)}
-        onTimeUpdate={onTimeUpdate}
-        className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
-      />
+      {/* static dark base (shown on mobile / before the video paints) */}
+      <div className="absolute inset-0 z-0 bg-[oklch(0.15_0.03_350)]" />
+      {/* ambient background clip — desktop only (heavy file) */}
+      {withVideo && (
+        <video
+          ref={videoRef}
+          src="/japan.mp4#t=6"
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          tabIndex={-1}
+          aria-hidden
+          onLoadedMetadata={seekStart}
+          onCanPlay={() => setReady(true)}
+          onTimeUpdate={onTimeUpdate}
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
+        />
+      )}
       {/* theme-independent dark scrim — keeps the video clear while light text reads */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-r from-black/70 via-black/40 to-black/15" />
 

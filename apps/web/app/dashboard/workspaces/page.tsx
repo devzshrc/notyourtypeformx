@@ -73,7 +73,7 @@ export default function WorkspacesPage() {
 
     if (isLoading) {
         return (
-            <div className="px-6 py-8">
+            <div className="px-4 py-6 sm:px-6 sm:py-8">
                 <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                     <Skeleton className="h-8 w-40" />
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -98,9 +98,9 @@ export default function WorkspacesPage() {
     }
 
     return (
-        <div className="px-6 py-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-            <div className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-border/60 px-7 py-9">
+            <div className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 px-5 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-7 sm:py-9">
                 <Image
                     src="/landing/jp-5.jpg"
                     alt="A mountain road in Kyoto under a bright sky"
@@ -231,7 +231,7 @@ function WorkspaceDetail({ workspace, onBack, onDelete, onLeave, deleting, leavi
     const { forms } = useListWorkspaceForms(workspace.id);
 
     return (
-        <div className="px-6 py-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
             {/* Header */}
             <div className="flex items-center gap-4">

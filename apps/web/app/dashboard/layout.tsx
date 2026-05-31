@@ -181,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SlideIn>
 
             {/* ── Mobile header ── */}
-            <div className="flex flex-1 flex-col min-w-0">
+            <div className="flex flex-1 flex-col min-w-0 overflow-x-hidden">
                 <header className="flex items-center justify-between border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-sm md:hidden">
                     <Link href="/" className="text-lg font-semibold tracking-tight">
                         Schema

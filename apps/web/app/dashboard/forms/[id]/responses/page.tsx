@@ -116,17 +116,17 @@ export default function ResponsesPage() {
     };
 
     return (
-        <div className="px-6 py-8 text-foreground">
+        <div className="px-4 py-6 text-foreground sm:px-6 sm:py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 sm:gap-4">
                     <Link href={`/dashboard/forms/${formId}`}><Button variant="ghost" size="icon" aria-label="Back to form editor"><ArrowLeft className="size-4" /></Button></Link>
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                         <p className="text-sm text-muted-foreground">Responses{total ? ` · ${total}` : ""}</p>
-                        <h1 className="text-2xl font-semibold tracking-tight">{form?.title ?? "Loading..."}</h1>
+                        <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{form?.title ?? "Loading..."}</h1>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={exportCsv} disabled={!submissions || submissions.length === 0}><Download className="mr-1 size-4" /> CSV</Button>
-                        <Button variant="outline" onClick={exportXlsx} disabled={!submissions || submissions.length === 0}><FileSpreadsheet className="mr-1 size-4" /> Excel</Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={exportCsv} disabled={!submissions || submissions.length === 0}><Download className="size-4 sm:mr-1" /> <span className="hidden sm:inline">CSV</span></Button>
+                        <Button variant="outline" size="sm" onClick={exportXlsx} disabled={!submissions || submissions.length === 0}><FileSpreadsheet className="size-4 sm:mr-1" /> <span className="hidden sm:inline">Excel</span></Button>
                     </div>
                 </div>
 

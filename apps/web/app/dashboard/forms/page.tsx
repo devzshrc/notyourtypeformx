@@ -146,13 +146,13 @@ export default function DashboardForms() {
     const archivedForms = forms?.filter((f) => f.isArchived) ?? [];
 
     return (
-        <div className="px-6 py-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="font-display text-3xl font-semibold tracking-tight">Forms</h1>
                         {workspaces && workspaces.length > 0 && (
-                            <div className="mt-3 flex items-center gap-1 rounded-lg border border-border/60 bg-muted/50 p-1">
+                            <div className="mt-3 flex flex-wrap items-center gap-1 rounded-lg border border-border/60 bg-muted/50 p-1">
                                 <button
                                     type="button"
                                     onClick={() => setActiveWorkspaceId(undefined)}
@@ -173,11 +173,11 @@ export default function DashboardForms() {
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
                         {/* AI Generate Dialog */}
                         <Dialog open={aiOpen} onOpenChange={setAiOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="gap-2">
+                                <Button variant="outline" className="w-full gap-2 sm:w-auto">
                                     <Sparkles className="size-4 text-primary" />
                                     Generate with AI
                                 </Button>
@@ -215,7 +215,7 @@ export default function DashboardForms() {
                         {/* Import from Google Forms Dialog */}
                         <Dialog open={importOpen} onOpenChange={setImportOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="gap-2">
+                                <Button variant="outline" className="w-full gap-2 sm:w-auto">
                                     <Download className="size-4 text-primary" />
                                     Import from Google Forms
                                 </Button>
@@ -252,7 +252,7 @@ export default function DashboardForms() {
 
                         {/* Manual Create Dialog */}
                         <Dialog open={open} onOpenChange={setOpen}>
-                            <DialogTrigger asChild><Button>Create Form</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button className="w-full sm:w-auto">Create Form</Button></DialogTrigger>
                             <DialogContent className="sm:max-w-md">
                                 <DialogHeader>
                                     <DialogTitle>Create Form</DialogTitle>
@@ -354,14 +354,14 @@ function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, worksp
                         <PencilLine className="size-4 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                             <h2 className="truncate text-sm font-semibold">{form.title}</h2>
                             <StatusSeal
                                 status={form.isArchived ? "ARCHIVED" : isLive ? "PUBLISHED" : "DRAFT"}
                                 className="shrink-0"
                             />
                             {wsName && (
-                                <Badge variant="outline" className="shrink-0 text-xs py-0 gap-1">
+                                <Badge variant="outline" className="hidden shrink-0 gap-1 py-0 text-xs sm:inline-flex">
                                     <Building2 className="size-2.5" />{wsName}
                                 </Badge>
                             )}

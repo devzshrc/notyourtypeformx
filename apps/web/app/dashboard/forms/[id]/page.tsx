@@ -325,7 +325,7 @@ export default function FormEditorPage() {
         toast.success(`${lines.length} fields added`);
     };
 
-    if (formLoading) return <div className="px-6 py-8"><div className="mx-auto max-w-4xl space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-64 w-full" /></div></div>;
+    if (formLoading) return <div className="px-4 py-6 sm:px-6 sm:py-8"><div className="mx-auto max-w-4xl space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-64 w-full" /></div></div>;
 
     const isChoice = CHOICE_TYPES.includes(fType);
     const canJump = isChoice || fType === "YES_NO";
@@ -355,15 +355,15 @@ export default function FormEditorPage() {
     };
 
     return (
-        <div className="px-6 py-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
             <div className="mx-auto max-w-4xl space-y-6">
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/forms"><Button variant="ghost" size="icon" aria-label="Back"><ArrowLeft className="size-4" /></Button></Link>
                     <div className="flex-1 min-w-0">
                         {titleEditing ? (
-                            <div className="flex gap-2">
-                                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="max-w-xs" />
+                            <div className="flex flex-wrap gap-2">
+                                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full sm:max-w-xs" />
                                 <Button size="sm" onClick={handleUpdateTitle}>Save</Button>
                                 <Button size="sm" variant="ghost" onClick={() => setTitleEditing(false)}>Cancel</Button>
                             </div>

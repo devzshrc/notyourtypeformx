@@ -100,7 +100,7 @@ export default function AdminDashboard() {
     const recentForms = (forms ?? []).filter((f) => !f.isArchived).slice(0, 5);
 
     return (
-        <div className="px-6 py-8">
+        <div className="px-4 py-6 sm:px-6 sm:py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <FadeIn>
                     <div className="relative overflow-hidden rounded-2xl border border-border/60">
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
                             className="object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
-                        <div className="relative px-7 py-9">
+                        <div className="px-5 py-7 sm:px-7 sm:py-9">
                             <div className="flex items-center gap-2 text-sm text-white/80" suppressHydrationWarning>
                                 <span className="font-display">{greeting()}</span>
                                 <span className="text-white/40">·</span>
