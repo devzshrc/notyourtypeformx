@@ -36,7 +36,10 @@ export function Faq() {
     <section className="border-t border-border/60 bg-muted/30">
       <div className="mx-auto grid max-w-[1200px] gap-10 px-6 py-24 md:grid-cols-[0.8fr_1.2fr] md:py-32">
         <FadeInView>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+            問答 · FAQ
+          </span>
+          <h2 className="font-display mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
             Questions, answered
           </h2>
           <p className="mt-4 max-w-sm text-muted-foreground">

@@ -33,13 +33,20 @@ export function LandingNav() {
       className={cn(
         "sticky top-0 z-50 transition-colors duration-300",
         scrolled
-          ? "border-b border-border/60 bg-background/80 backdrop-blur-xl"
+          ? "border-b border-border/70 bg-background/80 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent",
       )}
     >
       <nav className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-6">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
+          <Link
+            href="/"
+            className={cn(
+              "font-display flex items-center gap-2 text-xl font-semibold tracking-tight",
+              scrolled ? "text-foreground" : "text-white",
+            )}
+          >
+            <span className="sun-disc inline-block size-3.5 rounded-full" />
             Schema
           </Link>
           <div className="hidden items-center gap-6 lg:flex">
@@ -47,7 +54,12 @@ export function LandingNav() {
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className={cn(
+                  "text-sm transition-colors",
+                  scrolled
+                    ? "text-muted-foreground hover:text-foreground"
+                    : "text-white/80 hover:text-white",
+                )}
               >
                 {l.label}
               </Link>
@@ -67,7 +79,10 @@ export function LandingNav() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="hidden sm:inline-flex"
+                  className={cn(
+                    "hidden sm:inline-flex",
+                    !scrolled && "text-white hover:bg-white/15 hover:text-white",
+                  )}
                   onClick={() => router.push("/signin")}
                 >
                   Sign in

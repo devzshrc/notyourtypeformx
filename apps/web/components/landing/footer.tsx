@@ -23,7 +23,10 @@ export function Footer() {
     <footer className="border-t border-border/60">
       <div className="mx-auto grid max-w-[1200px] gap-10 px-6 py-14 md:grid-cols-[1.5fr_1fr_1fr]">
         <div>
-          <div className="text-lg font-semibold tracking-tight">Schema</div>
+          <div className="font-display flex items-center gap-2 text-xl font-semibold tracking-tight">
+            <span className="sun-disc inline-block size-3.5 rounded-full" />
+            Schema
+          </div>
           <p className="mt-3 max-w-xs text-sm text-muted-foreground">
             The AI-native form builder. Describe a form, ship it in seconds.
           </p>

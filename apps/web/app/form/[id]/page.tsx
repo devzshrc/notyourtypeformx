@@ -310,6 +310,10 @@ export default function PublicFormPage() {
                     transition={{ duration: 0.4 }}
                     className="max-w-lg text-center"
                 >
+                    {/* 礼 (rei) — gratitude, in an ensō; omotenashi for the respondent */}
+                    <div className="enso mx-auto mb-6 flex size-16 items-center justify-center rounded-full">
+                        <span className="text-2xl text-primary/70">礼</span>
+                    </div>
                     <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                         {form.endingTitle ? pipe(form.endingTitle, formData) : "Thank you!"}
                     </h1>

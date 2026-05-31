@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useSignin, useUser, safeRedirect, markSession } from "~/hooks/api/auth";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -15,7 +16,6 @@ import {
     StaggerList,
     StaggerItem,
     ScaleTap,
-    useReducedMotion,
     type Variants,
 } from "~/components/motion";
 import type { CSSProperties } from "react";
@@ -44,7 +44,6 @@ function SigninContent() {
     const searchParams = useSearchParams();
     const { signInUserWithEmailAndPasswordAsync, error, isPending } = useSignin();
     const { data: user, isLoading } = useUser();
-    const shouldReduce = useReducedMotion();
 
     // Already-/just-authenticated → honor ?redirect (e.g. /invite/{token}), not a hardcoded
     // /dashboard. Must match the post-login redirect in handleSubmit, otherwise this effect
@@ -75,35 +74,28 @@ function SigninContent() {
 
     return (
         <main className="flex min-h-[100dvh] bg-background">
-            {/* Left panel */}
-            <SlideIn direction="left" className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-primary/5 p-12 lg:flex">
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent" />
-                {!shouldReduce && (
-                    <>
-                        <motion.div
-                            animate={{ scale: [1, 1.03, 1], opacity: [0.08, 0.11, 0.08] }}
-                            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-                            style={{ willChange: "transform, opacity" }}
-                            className="pointer-events-none absolute -left-20 -top-20 size-96 rounded-full bg-primary blur-3xl"
-                        />
-                        <motion.div
-                            animate={{ y: [0, -6, 0] }}
-                            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-                            style={{ willChange: "transform" }}
-                            className="pointer-events-none absolute -bottom-20 -right-20 size-80 rounded-full bg-foreground/[0.06] blur-3xl"
-                        />
-                    </>
-                )}
+            {/* Left panel — Japan photography under an ink wash */}
+            <SlideIn direction="left" className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-12 lg:flex">
+                <Image
+                    src="/landing/auth-signin-v2.jpg"
+                    alt="Japan"
+                    fill
+                    priority
+                    sizes="50vw"
+                    className="object-cover"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/40" />
                 <Link href="/" className="relative z-10">
-                    <span className="text-2xl font-semibold tracking-tight">
+                    <span className="font-display flex items-center gap-2 text-2xl font-semibold tracking-tight text-white">
+                        <span className="sun-disc inline-block size-3.5 rounded-full" />
                         Schema
                     </span>
                 </Link>
                 <div className="relative z-10 space-y-4">
-                    <blockquote className="text-lg font-medium leading-relaxed text-foreground/80">
+                    <blockquote className="font-display text-2xl font-medium leading-snug text-white">
                         &ldquo;Build forms that people actually want to fill.&rdquo;
                     </blockquote>
-                    <p className="text-sm text-muted-foreground">AI-powered, beautiful themes, real-time analytics</p>
+                    <p className="text-sm text-white/70">AI-powered, beautiful themes, real-time analytics</p>
                 </div>
             </SlideIn>
 

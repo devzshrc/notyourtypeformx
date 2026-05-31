@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useListCategories, useListTemplates, useCloneTemplate } from "~/hooks/api/template";
@@ -35,8 +36,20 @@ export default function TemplatesPage() {
         <div className="px-6 py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <FadeIn>
-                    <h1 className="text-2xl font-semibold tracking-tight">Template Gallery</h1>
-                    <p className="mt-0.5 text-sm text-muted-foreground">Start with a pre-built form and customize it to your needs.</p>
+                    <div className="relative overflow-hidden rounded-2xl border border-border/60">
+                        <Image
+                            src="/landing/jp-4.jpg"
+                            alt="A quiet Japanese town street at golden hour"
+                            fill
+                            sizes="(max-width: 1024px) 100vw, 1024px"
+                            className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
+                        <div className="relative px-7 py-9">
+                            <h1 className="font-display text-3xl font-semibold tracking-tight text-white">Template Gallery</h1>
+                            <p className="mt-1 text-sm text-white/75">Start with a pre-built form and customize it to your needs.</p>
+                        </div>
+                    </div>
                 </FadeIn>
 
                 <div className="flex flex-col gap-3 sm:flex-row">

@@ -149,7 +149,7 @@ export default function DashboardForms() {
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Forms</h1>
+                        <h1 className="font-display text-3xl font-semibold tracking-tight">Forms</h1>
                         {workspaces && workspaces.length > 0 && (
                             <div className="mt-3 flex items-center gap-1 rounded-lg border border-border/60 bg-muted/50 p-1">
                                 <button

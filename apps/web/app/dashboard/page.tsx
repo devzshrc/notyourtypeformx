@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { BarChart3, FileText, Eye, CheckCircle, ArrowRight, Plus } from "~/components/icons";
 import { useAdminStats, useListForms } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
@@ -40,6 +41,14 @@ const arrowVariants: Variants = {
 
 const WC_TRANSFORM: CSSProperties = { willChange: "transform" };
 const WC_OPACITY_TRANSFORM: CSSProperties = { willChange: "opacity, transform" };
+
+// Time-of-day Japanese greeting (aisatsu) — おもてなし, a warm welcome.
+function greeting() {
+    const h = new Date().getHours();
+    if (h < 11) return "おはよう · Good morning";
+    if (h < 18) return "こんにちは · Good afternoon";
+    return "こんばんは · Good evening";
+}
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 function StatCard({ icon, iconBg, iconColor, label, value }: {
@@ -84,9 +93,21 @@ export default function AdminDashboard() {
         <div className="px-6 py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
                 <FadeIn>
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-                        <p className="mt-0.5 text-sm text-muted-foreground">Welcome back. Here&apos;s what&apos;s happening with your forms.</p>
+                    <div className="relative overflow-hidden rounded-2xl border border-border/60">
+                        <Image
+                            src="/landing/jp-1.jpg"
+                            alt="Rice fields glowing at golden hour through a train window"
+                            fill
+                            priority
+                            sizes="(max-width: 1024px) 100vw, 1024px"
+                            className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
+                        <div className="relative px-7 py-9">
+                            <p className="font-display text-sm text-white/80" suppressHydrationWarning>{greeting()}</p>
+                            <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight text-white">Overview</h1>
+                            <p className="mt-1 text-sm text-white/75">Welcome back. Here&apos;s what&apos;s happening with your forms.</p>
+                        </div>
                     </div>
                 </FadeIn>
 

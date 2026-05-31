@@ -9,13 +9,16 @@ export function FinalCta() {
   const router = useRouter();
   return (
     <section className="mx-auto max-w-[1200px] px-6 py-24 md:py-32">
-      <FadeInView className="relative overflow-hidden rounded-3xl border border-border bg-card px-6 py-20 text-center md:py-28">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground/[0.06] blur-3xl" />
-          <div className="bg-dot-grid absolute inset-0 text-foreground/[0.05] [mask-image:radial-gradient(ellipse_50%_60%_at_50%_50%,#000,transparent_75%)]" />
+      <FadeInView className="relative overflow-hidden rounded-md border border-border bg-card px-6 py-20 text-center md:py-24">
+        {/* hanko seal accent */}
+        <div className="hanko absolute right-6 top-6 hidden size-14 rotate-[-6deg] items-center justify-center rounded-md text-xl text-white shadow-md md:flex">
+          <span className="font-display leading-none">完</span>
         </div>
-        <div className="relative mx-auto max-w-xl">
-          <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
+        <div className="mx-auto max-w-xl">
+          <span className="text-xs font-medium uppercase tracking-[0.2em] text-primary">
+            始めよう · Begin
+          </span>
+          <h2 className="font-display mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
             Your next form is one sentence away
           </h2>
           <p className="mx-auto mt-5 max-w-md text-lg text-muted-foreground">

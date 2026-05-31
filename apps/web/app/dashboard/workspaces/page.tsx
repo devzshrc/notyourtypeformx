@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useListWorkspaces, useCreateWorkspace, useDeleteWorkspace, useLeaveWorkspace, useListMembers, useInviteMember, useRemoveMember, useUpdateMemberRole, useListPendingInvitations, useRevokeInvitation, useUpdateWorkspace } from "~/hooks/api/workspace";
 import { useListWorkspaceForms } from "~/hooks/api/form";
@@ -99,14 +100,22 @@ export default function WorkspacesPage() {
     return (
         <div className="px-6 py-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Workspaces</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">Collaborate with your team on forms</p>
+            <div className="relative flex items-center justify-between overflow-hidden rounded-2xl border border-border/60 px-7 py-9">
+                <Image
+                    src="/landing/jp-5.jpg"
+                    alt="A mountain road in Kyoto under a bright sky"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 1024px"
+                    className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/25" />
+                <div className="relative">
+                    <h1 className="font-display text-3xl font-semibold tracking-tight text-white">Workspaces</h1>
+                    <p className="mt-1 text-sm text-white/75">Collaborate with your team on forms</p>
                 </div>
                 <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" className="gap-1.5"><Plus className="size-4" /> New Workspace</Button>
+                        <Button size="sm" className="relative gap-1.5"><Plus className="size-4" /> New Workspace</Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
