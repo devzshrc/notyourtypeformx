@@ -74,13 +74,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <CommandPalette />
             {/* ── Sidebar ── */}
             <SlideIn direction="left" className="hidden md:flex">
-                <aside className="flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
+                <aside className="relative flex w-60 shrink-0 flex-col border-r border-border/60 bg-sidebar">
+                    {/* faint washi grain (overlay so it doesn't tint text) */}
+                    <div aria-hidden className="washi pointer-events-none absolute inset-0 text-foreground/[0.04]" />
+                    {/* Noren (暖簾) — split-curtain accent at the top of the sidebar */}
+                    <div aria-hidden className="noren absolute inset-x-0 top-0 z-10 h-1 opacity-80" />
                     {/* Logo */}
-                    <div className="px-5 py-5">
-                        <Link href="/">
-                            <span className="text-lg font-semibold tracking-tight">
-                                Schema
-                            </span>
+                    <div className="relative px-5 py-5 pt-6">
+                        <Link href="/" className="font-display flex items-center gap-2 text-lg font-semibold tracking-tight">
+                            <span className="sun-disc inline-block size-3 rounded-full" />
+                            Schema
                         </Link>
                     </div>
 

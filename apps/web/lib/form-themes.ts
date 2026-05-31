@@ -13,17 +13,20 @@ export type FormThemeOption = {
     label: string;
     description: string;
     primaryColor: string;
+    /** Optional Japanese-aesthetic name (kanji + romaji) shown in the picker. */
+    kanji?: string;
+    aesthetic?: string;
 };
 
 export const FORM_THEME_OPTIONS: FormThemeOption[] = [
-    { value: "minimal", label: "Minimal", description: "Clean neutral tones", primaryColor: "oklch(0.3211 0 0)" },
+    { value: "minimal", label: "Wabi", kanji: "侘", aesthetic: "wabi", description: "Plain, quiet, unadorned", primaryColor: "oklch(0.3211 0 0)" },
+    { value: "pastel", label: "Miyabi", kanji: "雅", aesthetic: "miyabi", description: "Refined, elegant, soft", primaryColor: "oklch(0.6800 0.1100 320.0000)" },
+    { value: "neon", label: "Iki", kanji: "粋", aesthetic: "iki", description: "Chic, bold, electric", primaryColor: "oklch(0.7800 0.1700 195.0000)" },
+    { value: "death-note", label: "Yūgen", kanji: "幽玄", aesthetic: "yugen", description: "Deep, dark, mysterious", primaryColor: "oklch(0.4500 0.1200 15.0000)" },
     { value: "northern-lights", label: "Northern Lights", description: "Green & purple aurora", primaryColor: "oklch(0.6487 0.1538 150.3071)" },
     { value: "sunset-warm", label: "Sunset Warm", description: "Warm amber & coral", primaryColor: "oklch(0.6500 0.1800 45.0000)" },
-    { value: "death-note", label: "Death Note", description: "Dark gothic anime", primaryColor: "oklch(0.4500 0.1200 15.0000)" },
     { value: "corporate", label: "Corporate", description: "Professional blue", primaryColor: "oklch(0.5500 0.1600 255.0000)" },
-    { value: "pastel", label: "Pastel", description: "Soft lavender & pink", primaryColor: "oklch(0.6800 0.1100 320.0000)" },
     { value: "high-contrast", label: "High Contrast", description: "Max readability (AA+)", primaryColor: "oklch(0.2000 0 0)" },
-    { value: "neon", label: "Neon", description: "Cyber dark & cyan", primaryColor: "oklch(0.7800 0.1700 195.0000)" },
 ];
 
 /** CSS-var map for a theme in the given mode, with a safe fallback to minimal. */

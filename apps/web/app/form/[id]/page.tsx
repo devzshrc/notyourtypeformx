@@ -320,6 +320,9 @@ export default function PublicFormPage() {
                     <p className="mt-3 text-muted-foreground">
                         {form.endingDescription ? pipe(form.endingDescription, formData) : "Your response has been submitted."}
                     </p>
+                    <p className="mt-6 text-xs uppercase tracking-[0.2em] text-muted-foreground/70">
+                        一期一会 — one meeting, treasured
+                    </p>
                 </motion.div>
             </main>
         );

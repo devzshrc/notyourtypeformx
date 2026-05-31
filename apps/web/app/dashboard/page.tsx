@@ -5,7 +5,8 @@ import Image from "next/image";
 import { BarChart3, FileText, Eye, CheckCircle, ArrowRight, Plus } from "~/components/icons";
 import { useAdminStats, useListForms } from "~/hooks/api/form";
 import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
+import { StatusSeal } from "~/components/ui/status-seal";
+import { DarumaGoal } from "~/components/ui/daruma-goal";
 import { Skeleton } from "~/components/ui/skeleton";
 import { formatRelativeTime, formatAbsoluteTime } from "~/lib/utils";
 import {
@@ -48,6 +49,15 @@ function greeting() {
     if (h < 11) return "おはよう · Good morning";
     if (h < 18) return "こんにちは · Good afternoon";
     return "こんばんは · Good evening";
+}
+
+// Season (季節) word + kigo by month — a small seasonal nod.
+function season() {
+    const m = new Date().getMonth(); // 0-11
+    if (m <= 1 || m === 11) return { kanji: "冬", en: "Winter", kigo: "雪 — snow settles" };
+    if (m <= 4) return { kanji: "春", en: "Spring", kigo: "桜 — blossoms open" };
+    if (m <= 7) return { kanji: "夏", en: "Summer", kigo: "涼 — seeking cool" };
+    return { kanji: "秋", en: "Autumn", kigo: "紅葉 — leaves turn" };
 }
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
@@ -104,9 +114,13 @@ export default function AdminDashboard() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/20" />
                         <div className="relative px-7 py-9">
-                            <p className="font-display text-sm text-white/80" suppressHydrationWarning>{greeting()}</p>
+                            <div className="flex items-center gap-2 text-sm text-white/80" suppressHydrationWarning>
+                                <span className="font-display">{greeting()}</span>
+                                <span className="text-white/40">·</span>
+                                <span className="font-display" title={season().kigo}>{season().kanji} {season().en}</span>
+                            </div>
                             <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight text-white">Overview</h1>
-                            <p className="mt-1 text-sm text-white/75">Welcome back. Here&apos;s what&apos;s happening with your forms.</p>
+                            <p className="mt-1 text-sm text-white/75" suppressHydrationWarning>{season().kigo} · here&apos;s what&apos;s happening with your forms.</p>
                         </div>
                     </div>
                 </FadeIn>
@@ -126,6 +140,17 @@ export default function AdminDashboard() {
                     </StaggerList>
                         </div>
                 ) : null}
+
+                {/* Daruma goal — onboarding nudge until both eyes are painted */}
+                {!statsLoading && !formsLoading && stats &&
+                    !(((forms?.length ?? 0) > 0) && stats.totalSubmissions > 0) && (
+                    <FadeIn delay={0.08}>
+                        <DarumaGoal
+                            madeForm={(forms?.length ?? 0) > 0}
+                            gotResponse={stats.totalSubmissions > 0}
+                        />
+                    </FadeIn>
+                )}
 
                 {/* Recent forms */}
                 <section className="flex flex-col gap-4">
@@ -168,9 +193,7 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-3">
-                                                <Badge variant={form.status === "PUBLISHED" ? "default" : "secondary"} className="text-xs">
-                                                    {form.status === "PUBLISHED" ? "Live" : "Draft"}
-                                                </Badge>
+                                                <StatusSeal status={form.status === "PUBLISHED" ? "PUBLISHED" : "DRAFT"} />
                                                 <motion.div variants={arrowVariants} style={WC_OPACITY_TRANSFORM}>
                                                     <ArrowRight className="size-3.5 text-muted-foreground" />
                                                 </motion.div>

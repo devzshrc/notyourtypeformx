@@ -39,7 +39,7 @@ export function Footer() {
                 <li key={l.label}>
                   <Link
                     href={l.href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    className="sumi-link text-sm text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {l.label}
                   </Link>

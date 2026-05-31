@@ -600,9 +600,20 @@ export default function FormEditorPage() {
                                             )}
                                         >
                                             <ThemePreview theme={theme.value} isDark={isDark} />
-                                            <div>
-                                                <p className="text-sm font-semibold">{theme.label}</p>
-                                                <p className="mt-0.5 text-xs text-muted-foreground">{theme.description}</p>
+                                            <div className="flex items-center gap-2.5">
+                                                {theme.kanji && (
+                                                    <span
+                                                        aria-hidden
+                                                        className="flex size-8 shrink-0 items-center justify-center rounded-md text-lg"
+                                                        style={{ color: theme.primaryColor, backgroundColor: `color-mix(in oklch, ${theme.primaryColor} 14%, transparent)` }}
+                                                    >
+                                                        {theme.kanji}
+                                                    </span>
+                                                )}
+                                                <div>
+                                                    <p className="text-sm font-semibold">{theme.label}</p>
+                                                    <p className="mt-0.5 text-xs text-muted-foreground">{theme.description}</p>
+                                                </div>
                                             </div>
                                             {selectedTheme === theme.value && (
                                                 <span className="absolute right-3 top-3 z-10 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">✓</span>

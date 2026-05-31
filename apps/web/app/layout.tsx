@@ -33,8 +33,8 @@ const fontApp = Zen_Kaku_Gothic_New({
 });
 
 export const metadata: Metadata = {
-    title: "Schema",
-    description: "Build beautiful conversational forms with AI",
+    title: "Schema · 書式",
+    description: "AI-native form builder — describe a form in one sentence, ship it in seconds. 考えを、ひとことで。",
 };
 
 export default function RootLayout({

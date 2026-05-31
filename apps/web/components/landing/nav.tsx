@@ -55,7 +55,7 @@ export function LandingNav() {
                 key={l.href}
                 href={l.href}
                 className={cn(
-                  "text-sm transition-colors",
+                  "sumi-link text-sm transition-colors",
                   scrolled
                     ? "text-muted-foreground hover:text-foreground"
                     : "text-white/80 hover:text-white",

@@ -13,6 +13,7 @@ import { useListWorkspaces } from "~/hooks/api/workspace";
 
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
+import { StatusSeal } from "~/components/ui/status-seal";
 import {
     Dialog,
     DialogContent,
@@ -355,9 +356,10 @@ function FormCard({ form, onClone, onArchive, onMove, cloning, archiving, worksp
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                             <h2 className="truncate text-sm font-semibold">{form.title}</h2>
-                            <Badge variant={isLive ? "default" : "secondary"} className="shrink-0 text-xs py-0">
-                                {isLive ? "Live" : "Draft"}
-                            </Badge>
+                            <StatusSeal
+                                status={form.isArchived ? "ARCHIVED" : isLive ? "PUBLISHED" : "DRAFT"}
+                                className="shrink-0"
+                            />
                             {wsName && (
                                 <Badge variant="outline" className="shrink-0 text-xs py-0 gap-1">
                                     <Building2 className="size-2.5" />{wsName}

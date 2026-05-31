@@ -225,6 +225,79 @@
   background: oklch(0.6900 0.2050 358);
 }
 
+/* 伝統色 — traditional Japanese colors used for status semantics */
+:root {
+  --jp-moegi: oklch(0.6600 0.1500 132); /* 萌黄 — fresh green: live */
+  --jp-nibi:  oklch(0.5400 0.0120 270); /* 鈍色 — slate grey: draft/archived */
+  --jp-akane: oklch(0.5200 0.1700 22);  /* 茜   — madder red: closed */
+  --jp-ai:    oklch(0.4500 0.1100 256); /* 藍   — indigo */
+  --jp-shu:   oklch(0.6000 0.1900 32);  /* 朱   — vermilion */
+}
+.dark {
+  --jp-moegi: oklch(0.7600 0.1600 132);
+  --jp-nibi:  oklch(0.6800 0.0120 270);
+  --jp-akane: oklch(0.6400 0.1800 24);
+  --jp-ai:    oklch(0.6600 0.1300 256);
+  --jp-shu:   oklch(0.6800 0.1900 32);
+}
+
+/* Zen garden (枯山水) — raked-sand concentric ripples (use with a faint text color) */
+.zen-sand {
+  background-image: repeating-radial-gradient(
+    circle at 50% 38%,
+    transparent 0 17px,
+    currentColor 17px 18px,
+    transparent 18px 19px
+  );
+}
+
+/* Asanoha (麻の葉) — hemp-leaf lattice, approximated (use with a faint text color) */
+.asanoha {
+  background-image:
+    linear-gradient(60deg, currentColor 1px, transparent 1px),
+    linear-gradient(-60deg, currentColor 1px, transparent 1px),
+    linear-gradient(0deg, currentColor 1px, transparent 1px);
+  background-size: 32px 56px;
+}
+
+/* Washi (和紙) — faint paper grain for surfaces */
+.washi {
+  background-image: radial-gradient(currentColor 0.5px, transparent 0.5px);
+  background-size: 5px 5px;
+}
+
+/* Noren (暖簾) — split-curtain top accent (sakura strips) */
+.noren {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--primary) 0 18px,
+    transparent 18px 24px
+  );
+}
+
+/* Sumi (墨) brush underline that wipes in on hover */
+.sumi-link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  transition: background-size 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sumi-link:hover {
+  background-size: 100% 1.5px;
+}
+
+/* Hanko press — quick stamp feel on active */
+.hanko-press {
+  transition: transform 0.12s cubic-bezier(0.3, 0, 0.2, 1);
+}
+.hanko-press:active {
+  transform: scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hanko-press:active { transform: none; }
+}
+
 /* Rising steam (湯気) for the ramen loader */
 @keyframes steam-rise {
   0%   { opacity: 0; transform: translateY(6px) scaleY(0.85); }
